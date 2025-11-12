@@ -5451,15 +5451,16 @@ $$\sum_i \alpha_i y_i x_i^T u + b >= 0$$
 
 </details>
 
-This is a big deal because it let's us switch perspectives when we have linearly inseparable data:
+This is a big deal because it let's us switch perspectives when we have linearly inseparable data. Let's see how the book "The Hundred-Page Machine Learning Book" presents this:
 
 ![w05_ksvm8.png](assets/w05_ksvm8.png "w05_ksvm8.png")
+![w05_ksvm8_1.png](assets/w05_ksvm8_1.png "w05_ksvm8_1.png")
 
-So, if the transformation is $F$, what do we need in order to classify a new point?
+We can see that what initially seemed like inseparable data, becomes a very easy task in higher dimensions!
 
 <details>
 
-<summary>Reveal answer</summary>
+<summary>So, if the transformation is $F$, what do we need in order to classify a new point?</summary>
 
 We need $F(x_i) \cdot F(u)$.
 
