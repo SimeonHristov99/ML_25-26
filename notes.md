@@ -5878,17 +5878,17 @@ Consider the case where a node with `N` samples is split into a left-node with `
 
 ![w07_ig_formula.png](assets/w07_ig_formula.png "w07_ig_formula.png")
 
-Here `I` is the amount of uncertainty and `IG` is information gain.[^1]
+Here `I` is the amount of uncertainty and `IG` is information gain.
 
 ##### What criterion is used to measure the impurity of a node?
 
 There are different criteria you can use among which are the **gini-index** and **entropy**.
 
-**Gini Index Formula and Example[^2]:**
+**Gini Index Formula and Example:**
 
 ![w07_gini_formula.png](assets/w07_gini_formula.png "w07_gini_formula.png")
 
-**Entropy Formula and Example[^3]:**
+**Entropy Formula and Example:**
 
 ![w07_entropy_formula.png](assets/w07_entropy_formula.png "w07_entropy_formula.png")
 
