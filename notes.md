@@ -157,6 +157,25 @@
       - [Limitations of CARTs](#limitations-of-carts)
       - [What is Ensemble Learning?](#what-is-ensemble-learning)
       - [The `Voting Classifier`](#the-voting-classifier)
+- [Week 07 - Bagging. Boosting](#week-07---bagging-boosting)
+  - [Bagging](#bagging)
+    - [Bootstrap](#bootstrap)
+    - [Bagging: Training](#bagging-training)
+    - [Bagging: Prediction](#bagging-prediction)
+    - [Bagging Reduces Variance](#bagging-reduces-variance)
+    - [The `oob_score_`](#the-oob_score_)
+    - [Further Diversity with `Random Forests`](#further-diversity-with-random-forests)
+    - [Feature Importance with Trees and Forests](#feature-importance-with-trees-and-forests)
+  - [Boosting](#boosting)
+    - [Adaboost](#adaboost)
+    - [Learning Rate](#learning-rate)
+    - [AdaBoost: Prediction](#adaboost-prediction)
+    - [Gradient Boosted Trees](#gradient-boosted-trees)
+    - [Gradient Boosted Trees for Regression: Training](#gradient-boosted-trees-for-regression-training)
+    - [Shrinkage](#shrinkage)
+    - [Gradient Boosted Trees for Regression: Prediction](#gradient-boosted-trees-for-regression-prediction)
+    - [Gradient Boosting: Cons](#gradient-boosting-cons)
+    - [Stochastic Gradient Boosting](#stochastic-gradient-boosting)
 
 # Week 01 - Numpy, Pandas, Matplotlib & Seaborn
 
@@ -6144,3 +6163,424 @@ Let's say we have a binary classification task.
   - Therefore, aviod setting $N$ to an even number.
 
 ![w07_ensemble_voting_clf.png](assets/w07_ensemble_voting_clf.png "w07_ensemble_voting_clf.png")
+
+# Week 07 - Bagging. Boosting
+
+## Bagging
+
+We finished off last week by talking about how we can ensemble multiple models to make a prediction.
+
+<details>
+
+<summary>What are the disadvantages of ensemble methods?</summary>
+
+- Trained on the same training set.
+- Use different algorithms.
+- Do not guarantee better performance (as you'll see in the tasks).
+
+</details>
+
+<details>
+
+<summary>What does bagging stand for?</summary>
+
+Shorthand for **B**ootstrap **agg**regation.
+
+</details>
+
+<details>
+
+<summary>Do you know what bagging means?</summary>
+
+- A model creation technique that outputs an ensemble meta-estimator that fits base classifiers **of 1 model type** each on random subsets of the original dataset and then aggregates their individual predictions (either by voting or by averaging) to form a final prediction.
+  - Training dataset for each model is formed by the `Bootstrap` technique.
+  - Proven to reduce variance of individual models in the ensemble.
+
+</details>
+
+### Bootstrap
+
+<details>
+
+<summary>What is a bootstrap sample?</summary>
+
+A bootstrap sample is a set of randomly chosen observations from the original dataset.
+
+</details>
+
+<details>
+
+<summary>Are samples drawn with or without replacement?</summary>
+
+The samples are drawn with replacement.
+
+</details>
+
+<details>
+
+<summary>How many samples are drawn from the original dataset?</summary>
+
+The size of the bootstrap sample is the same as the same size of the original dataset.
+
+</details>
+
+<details>
+
+<summary>If we have a dataset with 3 observations could you visualize the creation of 3 bootstrap samples?</summary>
+
+![w07_bootstrap.png](assets/w07_bootstrap.png "w07_bootstrap.png")
+
+</details>
+
+### Bagging: Training
+
+<details>
+
+<summary>Do you know what happens during the training phase of a bagging algorithm?</summary>
+
+In the training phase, bagging consists of:
+
+1. Drawing `N` bootstrap samples from the training set (`N` is a hyperparameter).
+2. Using each of them to train `N` models that use the same algorithm.
+
+![w07_bagging_training.png](assets/w07_bagging_training.png "w07_bagging_training.png")
+
+</details>
+
+### Bagging: Prediction
+
+<details>
+
+<summary>Can you intuit how prediction might work for a bagging algorithm?</summary>
+
+When a new instance is fed to the different models forming the bagging ensemble, each model outputs its prediction. The meta model collects these predictions and outputs a final prediction depending on the nature of the problem.
+
+![w07_bagging_prediction.png](assets/w07_bagging_prediction.png "w07_bagging_prediction.png")
+
+</details>
+
+<details>
+
+<summary>How would prediction work for a classification task?</summary>
+
+- If base estimators have a method `predict_proba`, then we return the class with the highest mean predicted probability from each of the estimators.
+- If base estimators do not have a method `predict_proba`, then we aggregates the predictions by majorty voting.
+- [`BaggingClassifier`](https://scikit-learn.org/stable/modules/generated/sklearn.ensemble.BaggingClassifier.html) in scikit-learn.
+
+</details>
+
+<details>
+
+<summary>How would prediction work for a regression task?</summary>
+
+- Aggregates predictions through averaging.
+- [`BaggingRegressor`](https://scikit-learn.org/stable/modules/generated/sklearn.ensemble.BaggingRegressor.html) in scikit-learn.
+
+</details>
+
+<details>
+
+<summary>Open one of the bagging algorithms above - do we pass the class for the parameter "estimator" or an instance of it?</summary>
+
+The model you pass as an `estimator` must already be created / instanciated, but not fitted.
+
+</details>
+
+<details>
+
+<summary>Do bagging algorithms work only for decision trees or can we use any algorithm in bagging?</summary>
+
+Any model will do.
+
+</details>
+
+### Bagging Reduces Variance
+
+Let's see why bagging reduces variance and why decision trees are typically the default estimators that are bagged.
+
+<details>
+
+<summary>What did we see last time - do decision trees suffer from high variance?</summary>
+
+Yep - they are one of the fastest algorithms to overfit the training set.
+
+</details>
+
+<details>
+
+<summary>And do they suffer from high bias?</summary>
+
+Actually, no - they are an **unbiased** estimator. They do not have any assumptions about the training data.
+
+</details>
+
+<details>
+
+<summary>Let's give a counter-example to this - what is the main assumption of linear models (that makes them biased)?</summary>
+
+That there is a linear relationship (correlation) between at least one of the features and the target variable.
+
+</details>
+
+Suppose we bag $M$ decision trees. Each of them has variance $\sigma^2$ and bias $b$.
+
+<details>
+
+<summary>How much is the bias?</summary>
+
+Since we have a decision tree, $b = 0$.
+
+</details>
+
+<details>
+
+<summary>Are they independent?</summary>
+
+We are using the same data so they are not completely independent and do have a small amount of correlation.
+
+</details>
+
+Let's say that each estimator $x$ has variance $\hat{f}_m(x)$ (some large number).
+
+<details>
+
+<summary>How much would the variance of the bagged model be?</summary>
+
+If the correlation between any two estimators is $\rho$, then:
+
+$$
+\text{Var}\left( \hat{f}_{\text{bag}}(x) \right) = \rho \sigma^2 + \frac{(1-\rho)\sigma^2}{M}
+$$
+
+*   When $\rho = 0$ (perfect independence), the variance reduces to ( $\sigma^2 / M$ ).
+*   When $\rho = 1$ (perfect correlation), the variance stays at ( $\sigma^2$ ) — no benefit.
+*   Bagging works best when base estimators are **unstable** and have low correlation after bootstrapping. If this is the case, the variance of the bagged models will be lower than the variance of each individual model and would decrease as we add more estimators.
+
+</details>
+
+And this is why decision trees are ideal for bagging:
+
+*   **High Variance Models**: They are very sensitive to small changes in data (high variance). Bagging reduces this variance dramatically.
+*   **Low Bias**: They can fit complex patterns, so bias is low. Bagging doesn’t fix bias, so starting with low bias is good.
+*   **Bootstrap Sampling Reduces Correlation**: Different bootstrap samples lead to diverse trees, lowering correlation.
+
+### The `oob_score_`
+
+During bagging some instances may be sampled several times for one model, but others may not be sampled at all. In fact, on average only $67%$ of the initial samples appear in the bootstrap sample!
+
+<details>
+
+<summary>How can we make use of the observations that are not sampled?</summary>
+
+We can use them to evaluate the model. This is known as the out-of-bag (`OOB`) evaluation. You can think of this as an analogy (**not the same!**) to cross validation / train-test splitting:
+
+![w07_oob_evaluation.png](assets/w07_oob_evaluation.png "w07_oob_evaluation.png")
+
+In sklearn, we can obtain the out of bag scores of each model by doing these two steps:
+
+1. Set `oob_score` to `True` when instanciating the aggregator.
+2. Train the model using the training set.
+3. Access the `OOB` scores using the `oob_score_` attribute of the trained model.
+
+> **Note:** When `oob_score_` is set to a boolean it returns the **accuracy** on the OOB instances. You'd have to pass a call to the metric `f1` if you wish to visualize this.
+
+</details>
+
+### Further Diversity with `Random Forests`
+
+- `Random Forests` is another ensemble learning method.
+- Its base estimator is a `Decision Tree`.
+- Each estimator is trained on a different bootstrap sample with size = size of original dataset.
+
+<details>
+
+<summary>So what is the difference between bagging algorithms and random forests?</summary>
+
+They introduce further randomization in the training of individual trees by now only sampling rows (bootstrapping observations), but also sampling columns ("bootstrapping" (with a twist - without replacement) features):
+
+$d$ features are sampled **for each model**, but ***without*** replacement ($d < \text{total number of features}$).
+
+![w07_random_forest.png](assets/w07_random_forest.png "w07_random_forest.png")
+
+</details>
+
+<details>
+
+<summary>How are predictions made when we have classification?</summary>
+
+- A vote by the trees in the forest, weighted by their probability estimates. That is, the predicted class is the one with highest mean probability estimate across the trees.
+- [`RandomForestClassifier`](https://scikit-learn.org/stable/modules/generated/sklearn.ensemble.RandomForestClassifier.html) in scikit-learn.
+
+</details>
+
+<details>
+
+<summary>How are predictions made when we have regression?</summary>
+
+- The predicted regression target of an input sample is computed as the mean predicted regression targets of the trees in the forest.
+- [`RandomForestRegressor`](https://scikit-learn.org/stable/modules/generated/sklearn.ensemble.RandomForestRegressor.html) in scikit-learn.
+
+</details>
+
+> **Note:** Similarly to bagging, not only trees can be used, but the model you pass as an `estimator` must already be created / instanciated.
+
+### Feature Importance with Trees and Forests
+
+Tree-based methods enable measuring the importance of each feature.
+
+In `sklearn`:
+
+- how many times the tree nodes use a particular feature (weighted average) to reduce impurity.
+- accessed using the attribute `feature_importance_`.
+
+<details>
+
+<summary>What other algorithm could we use to determine feature importances?</summary>
+
+Lasso Regression!
+
+</details>
+
+## Boosting
+
+<details>
+
+<summary>What is the essence of boosting?</summary>
+
+It is an ensemble method combining several **weak learners** to form a strong learner.
+
+</details>
+
+<details>
+
+<summary>What is your intuition about weak learners?</summary>
+
+A model doing slightly better than random guessing.
+
+</details>
+
+<details>
+
+<summary>In the context of decision trees what would be an example of a weak learners?</summary>
+
+A decision stump (CART whose maximum depth is $1$).
+
+</details>
+
+The general form of boosting algorithms is:
+
+1. Train an ensemble of predictors sequentially.
+2. Each predictor tries to correct its predecessor.
+
+<details>
+
+<summary>This second point is rather abstract - what does it mean in your opinion to "try to correct predecessor errors"?</summary>
+
+There're several possibilities:
+
+1. Place weights on the samples and use the [weighted gini impurity](https://stats.stackexchange.com/questions/68940/how-is-the-weighted-gini-criterion-defined) measure to forcefully increase the impurity when hard samples are not properly split, i.e. force the stumps to find better features that split hard / heavy samples.
+2. Place weights on the samples and for each new stump duplicate the hard samples according to their weight. **<- this is what we'll use in our implementation**
+3. Make the new weak learner predict the mistakes of its direct predecessor. <- this the approach taken by gradient boosting algorithms
+
+</details>
+
+- Most popular boosting methods:
+  - AdaBoost;
+  - Gradient Boosting family:
+    - Vanilla Gradient Boosting;
+    - XGBoost;
+    - CatBoost; **<- always try this algorithm out. It has built-in handling for categorical features.**
+    - LightGBM.
+
+### Adaboost
+
+- Shorthand for **Ada**ptive **Boost**ing.
+- Each predictor pays more attention to the instances wrongly predicted by its predecessor.
+  - Achieved by changing the weights of training instances, thus increasing the value of the loss if they get uncorrectly prediced again.
+- Each predictor is assigned a coefficient $\alpha$ that corresponds to the **amount of say** the predictor has in determining the final vote.
+  - $\alpha$ depends on the predictor's training error.
+
+The training procedure is as follows:
+
+1. Each of the samples is assigned a weight $1 / N, \text{N = number of samples}$.
+2. A stump is trained on the data.
+3. Get the samples that were wrongly classfied in each of the leafs.
+4. Calculate the total error of the stump: $\text{Total Error} = \sum w_{\text{misclassified}}$.
+5. Calculate the amount of say of the stump: $\text{Amount of Say} = \frac{1}{2} \log_e{\left[(1 - \text{Total Error}) / \text{Total Error} \right]}$.
+6. Update the sample weights of the correctly classified samples: $w_{\text{misclassified}} = w_{\text{misclassified}} \exp{\left[ \text{Amount of Say} \right]}$.
+7. Update the sample weights of the incorrectly classified samples: $w_{\text{not misclassified}} = w_{\text{not misclassified}} \exp{\left[ \text{-Amount of Say} \right]}$.
+8. Recreate $X$ using these new weights by sampling with weights and replacement. Thus, we duplicate the misclassified entries.
+9. Reset the weights to be uniform.
+
+![w07_adaboost.png](assets/w07_adaboost.png "w07_adaboost.png")
+
+### Learning Rate
+
+Learning rate: $0 < \eta \leq 1$
+
+![w07_adaboost_lr.png](assets/w07_adaboost_lr.png "w07_adaboost_lr.png")
+
+The learning rate - $\eta$ (eta), is used to shrink the coefficient $\alpha$ of a trained predictor. It's important to note that there's a trade-off between $\eta$ and the number of estimators. **A smaller value should be compensated by a greater number of estimators.**
+
+### AdaBoost: Prediction
+
+**Classification:**
+
+- Weighted mean prediction of the classifiers in the ensemble. Weighted by the amount of say.
+- In scikit-learn [`AdaBoostClassifier`](https://scikit-learn.org/stable/modules/generated/sklearn.ensemble.AdaBoostClassifier.html).
+
+**Regression:**
+
+- Weighted median prediction of the regressors in the ensemble. Weighted by the amount of say.
+- In scikit-learn [`AdaBoostRegressor`](https://scikit-learn.org/stable/modules/generated/sklearn.ensemble.AdaBoostRegressor.html).
+
+### Gradient Boosted Trees
+
+- Each predictor is trained using its predecessor's residual errors as **labels**.
+- The base learner is a CART.
+- Result: sequential correction of predecessor's errors.
+
+### Gradient Boosted Trees for Regression: Training
+
+Each predictor is trained to predict the last one's residuals.
+
+![w07_gradient_boosted_trees_regression.png](assets/w07_gradient_boosted_trees_regression.png "w07_gradient_boosted_trees_regression.png")
+
+For classification, the residuals are calculated as the difference between the class probabilities.
+
+### Shrinkage
+
+- The prediction of each tree in the ensemble is shrinked after it is multiplied by a learning rate $\eta$.
+- Similarly to `AdaBoost`, there's a trade-off between eta and the number of estimators:
+  - less learning rate => a lot of estimators
+
+![w07_gradient_boosted_trees_eta.png](assets/w07_gradient_boosted_trees_eta.png "w07_gradient_boosted_trees_eta.png")
+
+### Gradient Boosted Trees for Regression: Prediction
+
+- Regression:
+  - $y_{pred} = y_1 + \eta r_1 + \ldots + \eta r_N$
+  - in sklearn: [`GradientBoostingRegressor`](https://scikit-learn.org/stable/modules/generated/sklearn.ensemble.GradientBoostingRegressor.html).
+
+- Classification:
+  - in sklearn: [`GradientBoostingClassifier`](https://scikit-learn.org/stable/modules/generated/sklearn.ensemble.GradientBoostingClassifier.html).
+
+### Gradient Boosting: Cons
+
+Each CART is trained to find the best split points and features. This produces two problems:
+
+- this is an exhaustive search procedure;
+- may lead to CARTs using the same split points and maybe the same features.
+
+### Stochastic Gradient Boosting
+
+- We can use the classes `GradientBoostingRegressor` and `GradientBoostingClassifier`.
+  - Making them stochastic is done by changing the values for the parameters `subsample` and `max_features`.
+    - Each tree is trained on a random subset of rows and columns of the training data.
+- The sampled instances are sampled without replacement.
+- When choosing split points the features are also sampled without replacement.
+- Benefits:
+  - Further ensemble diversity.
+  - Added bias to the ensemble of trees, thus ability to reduce overfitting.
+
+![w07_stochastic_gradient_boosting.png](assets/w07_stochastic_gradient_boosting.png "w07_stochastic_gradient_boosting.png")
