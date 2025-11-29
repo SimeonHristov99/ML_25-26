@@ -212,7 +212,7 @@ Adding unit tests is encouraged, but not strictly necessary.
 
 Let's implement the `Kernel SVM` in a class `SVC`. It should have the following API:
 
-- a method `__ini__` via which the hyperparameters `C` (a float), `kernel` (a string identifier), and `gamma` (a float) can be specified;
+- a method `__init__` via which the hyperparameters `C` (a float), `kernel` (a string identifier), and `gamma` (a float) can be specified;
 - a method `fit` that trains the `Kernel SVM` using the package `quadprog` (if you haven't already, run `pip install -Ur requirements.txt` in the root of our repository (make sure to run `git pull` first)):
   - it should save the following values as a minimum in the state of the object: `support_vectors_` and `intercept_` (feel free to add others).
 - a method `predict` that returns class labels for a matrix with observations.
