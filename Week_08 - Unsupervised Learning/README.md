@@ -64,11 +64,11 @@ Fit `PCA`, then `t-SNE` and plot the data on $2$ dimensions. Conduct experiments
 - model only (no `PCA`, no `t-SNE`). Conduct multiple experiments to find the best model here.
 - `PCA` + model. Build it using a pipeline.
   - Experiment with different `linkage` methods in Hierarchical clustering. Attach relevant dendrograms.
-- `PCA` + `t-SNE` + model. Build it using a pipeline.
+- `PCA` + `t-SNE` + model.
 - `StandardScaler` + `PCA` + model. Build it using a pipeline.
-- `StandardScaler` + `PCA` + `t-SNE` + model. Build it using a pipeline.
-- `t-SNE` + model. Build it using a pipeline.
-- `StandardScaler` + `t-SNE` + model. Build it using a pipeline.
+- `StandardScaler` + `PCA` + `t-SNE` + model.
+- `t-SNE` + model.
+- `StandardScaler` + `t-SNE` + model.
 - `TruncatedSVD` + model. Build it using a pipeline.
 - `StandardScaler` + `TruncatedSVD` + model. Build it using a pipeline.
 
