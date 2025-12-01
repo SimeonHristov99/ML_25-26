@@ -192,6 +192,17 @@
     - [Grayscale images](#grayscale-images)
     - [Encoding a collection of images](#encoding-a-collection-of-images)
     - [Building recommender systems using NMF](#building-recommender-systems-using-nmf)
+- [Week 09 - Natural Language Processing](#week-09---natural-language-processing)
+  - [The added value of NLP](#the-added-value-of-nlp)
+  - [Regular expressions](#regular-expressions)
+  - [Tokenization](#tokenization)
+  - [Bag-of-words](#bag-of-words)
+  - [Text preprocessing](#text-preprocessing)
+  - [Gensim](#gensim)
+  - [Named Entity Recognition](#named-entity-recognition)
+    - [Using `nltk`](#using-nltk)
+    - [What is SpaCy?](#what-is-spacy)
+  - [The Naive Bayes Classifier](#the-naive-bayes-classifier)
 
 # Week 01 - Numpy, Pandas, Matplotlib & Seaborn
 
@@ -7560,5 +7571,1175 @@ print(similarities)
 ```console
 [ 0.7150569  0.26349967 ..., 0.20323616  0.05047817]
 ```
+
+</details>
+
+# Week 09 - Natural Language Processing
+
+## The added value of NLP
+
+<details>
+
+<summary>What is natural language processing?</summary>
+
+Field of study focused on making sense of language using statistics and computers.
+
+</details>
+
+<details>
+
+<summary>Why is it important?</summary>
+
+It lets us model characteristics holding text by turning them into numbers.
+
+</details>
+
+<details>
+
+<summary>What applications of natural language processing techniques have you heard of?</summary>
+
+- Chatbots.
+- Translation.
+- Sentiment analysis.
+- Named-entity recognition.
+- Tokenization.
+- etc, etc.
+
+</details>
+
+## Regular expressions
+
+<details>
+
+<summary>What are regular expressions?</summary>
+
+Strings with a special syntax that allow us to match patterns in other strings.
+
+</details>
+
+<details>
+
+<summary>Why do we use them?</summary>
+
+To parse the important pieces of information in large text corpora that may be **unstructured or noisy**. They help us identify patterns like dates, phone numbers, email addresses, or specific keywords without manually scanning the whole text.
+
+</details>
+
+<details>
+
+<summary>Do you know what a "corpus" (plural, "corpora") is?</summary>
+
+A set of raw texts (**not** preprocessed!) to perform NLP tasks on.
+
+</details>
+
+<details>
+
+<summary>What application of regular expressions have you heard of?</summary>
+
+- Find all web links in a document.
+- Parse email addresses.
+- Remove/replace unwanted characters.
+- Validate user credentials.
+- Part of speech tagging.
+
+</details>
+
+<details>
+
+<summary>Do you know the name of a very popular website for playing around with regular expressions?</summary>
+
+[regex101](https://regex101.com/)!
+
+</details>
+
+<details>
+
+<summary>Which package in Python has functions for working with regular expression?</summary>
+
+Regular expressions can be used in Python via the [`re`](https://docs.python.org/3/library/re.html) library.
+
+</details>
+
+Open the package and let's answer some questions.
+
+<details>
+
+<summary>What does the function "match" do?</summary>
+
+- `re.match`: matches a pattern with a string:
+  - first argument is the pattern;
+  - second argument is the string in which to match the pattern.
+  - Returns a [`Match`](https://docs.python.org/3/library/re.html#re.Match) object and `None` if the string does not match the pattern.
+
+</details>
+
+What would be returned in the following case:
+
+```python
+import re
+re.match('abc', 'abcdef')
+```
+
+<details>
+
+<summary>Reveal answer</summary>
+
+```console
+<re.Match object; span=(0, 3), match='abc'>
+```
+
+</details>
+
+What about this:
+
+```python
+re.match(r'\w+', 'hi there!') # notice the r-string used here!
+```
+
+<details>
+
+<summary>Reveal answer</summary>
+
+```console
+<re.Match object; span=(0, 2), match='hi'>
+```
+
+</details>
+
+<details>
+
+<summary>How can we get the actual text from a Match object?</summary>
+
+We can use `.group()`:
+
+```python
+re.match(r'\w+', 'hi there!').group()
+```
+
+```console
+'hi'
+```
+
+</details>
+
+<details>
+
+<summary>What is the meaning of strings with prefix "r"?</summary>
+
+These are the so-called a `raw strings`.
+
+- Without the prefix, backslashes ($\$) are treated as escape characters (e.g., `'\n'` becomes a newline).
+- With prefix `'r'` backslashes are not interpreted as escapes, so the string is taken literally.
+
+```python
+# Without raw string
+pattern = "\\d+"   # Matches digits
+
+# With raw string
+pattern = r"\d+"   # Matches digits (cleaner)
+```
+
+</details>
+
+Fill in the below patterns:
+
+| Pattern | Type            | Description | Example Text        | Matches in Example                     |
+| ------- | --------------- | ----------- | ------------------- | -------------------------------------- |
+| ???     | Character class | ???         | `"Magic is real"`   | `Magic`, `is`, `real`                  |
+| ???     | Character class | ???         | `"Room 9 is ready"` | `9`                                    |
+| ???     | Character class | ???         | `"Hello World"`     | the space between the words            |
+| ???     | Quantifier      | ???         | `"username74"`      | `username74`                           |
+| ???     | Quantifier      | ???         | `"AAACC"`           | `['CC']` (for `r'C+'`)                 |
+| ???     | Quantifier      | ???         | `"AAACC"`           | `['', '', '', 'CC', '']` (for `r'C*'`) |
+| ???     | Character class | ???         | `"no_spaces"`       | `n`, `o`, `_`, etc.                    |
+| ???     | Character set   | ???         | `"abcdefg"`         | `a`, `b`, `c`, ...                     |
+
+<details>
+
+<summary>Reveal answer</summary>
+
+| Pattern | Type            | Description                                                   | Example Text        | Matches in Example                     |
+| ------- | --------------- | ------------------------------------------------------------- | ------------------- | -------------------------------------- |
+| `\w+`   | Character class | One or more word characters (letters, digits, and underscore) | `"Magic is real"`   | `Magic`, `is`, `real`                  |
+| `\d`    | Character class | A single digit                                                | `"Room 9 is ready"` | `9`                                    |
+| `\s`    | Character class | A whitespace character (space, tab, newline)                  | `"Hello World"`     | the space between the words            |
+| `.*`    | Quantifier      | Zero or more of any character (except newline)                | `"username74"`      | `username74`                           |
+| `+`     | Quantifier      | One or more repetitions                                       | `"AAACC"`           | `['CC']` (for `r'C+'`)                 |
+| `*`     | Quantifier      | Zero or more repetitions                                      | `"AAACC"`           | `['', '', '', 'CC', '']` (for `r'C*'`) |
+| `\S`    | Character class | A non-whitespace character                                    | `"no_spaces"`       | `n`, `o`, `_`, etc.                    |
+| `[a-z]` | Character set   | Any lowercase letter                                          | `"abcdefg"`         | `a`, `b`, `c`, ...                     |
+
+</details>
+
+Fill in the below functions:
+
+| Function | Purpose | Example Code                            | Output Example              |
+| -------- | ------- | --------------------------------------- | --------------------------- |
+| ???      | ???     | `re.???(r'\s+', 'Kick on spaces.')`     | `['Kick', 'on', 'spaces.']` |
+| ???      | ???     | `re.???(r'\d+', 'Order 123, item 456')` | `['123', '456']`            |
+| ???      | ???     | `re.???(r'\d+', 'Order 123')`           | `<Match object: '123'>`     |
+| ???      | ???     | `re.???(r'Order', 'Order 123')`         | `<Match object: 'Order'>`   |
+
+<details>
+
+<summary>Reveal answer</summary>
+
+| Function  | Purpose                                 | Example Code                                | Output Example              |
+| --------- | --------------------------------------- | ------------------------------------------- | --------------------------- |
+| `split`   | Split a string based on a regex pattern | `re.split(r'\s+', 'Kick on spaces.')`       | `['Kick', 'on', 'spaces.']` |
+| `findall` | Find all occurrences of a pattern       | `re.findall(r'\d+', 'Order 123, item 456')` | `['123', '456']`            |
+| `search`  | Search for first match in a string      | `re.search(r'\d+', 'Order 123')`            | `<Match object: '123'>`     |
+| `match`   | Match pattern at the start of a string  | `re.match(r'Order', 'Order 123')`           | `<Match object: 'Order'>`   |
+
+</details>
+
+Which of the following Regex patterns results in the following text?
+
+```python
+>>> my_string = "Let's write RegEx!"
+>>> re.findall(PATTERN, my_string)
+['Let', 's', 'write', 'RegEx']
+```
+
+```text
+A. r"\s+"
+B. r"\w+"
+C. r"[a-z]"
+D. r"\w"
+```
+
+<details>
+
+<summary>Reveal answer</summary>
+
+Answer: B.
+
+</details>
+
+<details>
+
+<summary>What is the difference between `re.search()` and `re.match()`?</summary>
+
+The main difference is what index they start searching from:
+
+- `search` scans through the whole string (searching starts from every index);
+- `match` scans only the beginning of the string (searching starts only from the first index).
+
+```python
+re.match(r'cd', 'abcde')
+```
+
+```console
+# Nothing is returned, i.e. empty string
+```
+
+```python
+re.search(r'cd', 'abcde')
+```
+
+```console
+<re.Match object; span=(2, 4), match='cd'>
+```
+
+> **Note:** Both return the first matching substring.
+
+</details>
+
+<details>
+
+<summary>How can we place multiple patterns in a single expression? What if we wanted to match words or numbers?</summary>
+
+- OR is represented using `|`.
+- You can define a group using `()`.
+- You can define explicit character range using `[]`.
+
+```python
+import re
+re.findall(r'(\d+|\w+)', 'He has 11 cats.')
+```
+
+```console
+['He', 'has', '11', 'cats']
+```
+
+</details>
+
+Fill in the below patterns:
+
+| pattern | matches                                           | example            |
+| ------- | ------------------------------------------------- | ------------------ |
+| ???     | upper and lowercase English alphabet              | 'ABCDEFghijk'      |
+| ???     | numbers from 0 to 9                               | 9                  |
+| ???     | upper and lowercase English alphabet, `-` and `.` | `'My-Website.com'` |
+| ???     | `a`, `-` and `z`                                  | 'a-z'              |
+| ???     | spaces or a comma                                 | `', '`             |
+
+<details>
+
+<summary>Reveal answer</summary>
+
+| pattern        | matches                                           | example            |
+| -------------- | ------------------------------------------------- | ------------------ |
+| `[a-zA-Z]+`    | upper and lowercase English alphabet              | `'ABCDEFghijk'`    |
+| `[0-9]`        | numbers from 0 to 9                               | `9`                |
+| `[a-zA-Z\-.]+` | upper and lowercase English alphabet, `-` and `.` | `'My-Website.com'` |
+| `[a\-z]`       | `a`, `-` and `z`                                  | `'a-z'`            |
+| `[\s,]+`       | spaces or a comma                                 | `', '`             |
+
+</details>
+
+## Tokenization
+
+Tokenization is often the first step in preparing a text for NLP.
+
+<details>
+
+<summary>What is tokenization?</summary>
+
+Turning a string or document into smaller chunks. Those chunks are called **tokens**.
+
+</details>
+
+<details>
+
+<summary>Why should we tokenize text?</summary>
+
+- Breaking our words or sentences.
+- Separating punctuation.
+- Separating all hashtags in a tweet.
+- Easier to map part of speech.
+- Removing common words.
+- Removing unwanted tokens.
+
+</details>
+
+There are many different types of tokenization and rules for doing it. We can create our own rules using regular expressions.
+
+<details>
+
+<summary>What Python library is used for basic natural language processing?</summary>
+
+[nltk](https://www.nltk.org/): Natural language toolkit.
+
+```python
+import nltk
+from nltk import tokenize
+nltk.download('punkt_tab') # This is required only once. 
+tokenize.word_tokenize('Hi there!')
+```
+
+```console
+['Hi', 'there', '!']
+```
+
+Other tokenizers:
+
+- [`sent_tokenize`](https://www.nltk.org/api/nltk.tokenize.sent_tokenize.html): tokenize a document into sentences;
+- [RegexpTokenizer](https://www.nltk.org/api/nltk.tokenize.regexp.html): tokenize a string or document based on a regular expression pattern;
+- [TweetTokenizer](https://www.nltk.org/api/nltk.tokenize.casual.html#nltk.tokenize.casual.TweetTokenizer): special class just for tweet tokenization, allowing you to separate hashtags, mentions and lots of exclamation points.
+
+</details>
+
+Here is a string:
+
+```python
+my_string = "SOLDIER #1: Found them? In Mercea? The coconut's tropical!"
+```
+
+Our goal would be to get the following tokenization:
+
+```console
+['SOLDIER', '#1', 'Found', 'them', '?', 'In', 'Mercea', '?', 'The', 'coconut', 's', 'tropical', '!']
+```
+
+Which of the below patterns is the best tokenizer?
+
+A. `r"(\w+|\?|!)"`
+
+B. `r"(\w+|#\d|\?|!)"`
+
+C. `r"(#\d\w+\?!)"`
+
+D. `r"\s+"`
+
+<details>
+
+<summary>Reveal answer</summary>
+
+Answer: B.
+
+You can try it out:
+
+```python
+import re
+my_string = "SOLDIER #1: Found them? In Mercea? The coconut's tropical!"
+re.findall(r"(\w+|#\d|\?|!)", my_string)
+```
+
+</details>
+
+In deep learning tasks tokenization is usually followed by transforming each token into a word-vector.
+
+<details>
+
+<summary>Do you know what word vectors are?</summary>
+
+It is a word that has been ***embedded*** in an `n` dimensional **semantic** space, so `word vectors = n-dimensional vector`. The words around it have similar meaning to it. Words far from it have a different meaning.
+
+![w09_word_vectors.png](assets/w09_word_vectors.png "w09_word_vectors.png")
+
+- With quality word vectors (creating using neural networks) we can make the following conclusions:
+  - The vector operation `king minus queen` is approximately equal to `man minus woman`.
+  - Spain is to Madrid as Italy is to Rome.
+
+</details>
+
+## Bag-of-words
+
+<details>
+
+<summary>What is bag-of-words?</summary>
+
+Creating a matrix in which:
+
+- the rows are documents;
+- the columns are words;
+- the elements inside are counts.
+
+</details>
+
+<details>
+
+<summary>What are the two main steps of the bag-of-words approach for a single document?</summary>
+
+1. Tokenize input.
+2. Count up all the tokens.
+
+</details>
+
+<details>
+
+<summary>What is an "important token" in the context of bag-of-words?</summary>
+
+The more frequent a token is, the more important it might be.
+
+Thus, this approach can be a good (not the greatest) way to determine the significant words in a document.
+
+</details>
+
+<details>
+
+<summary>In what case would this approach for word importance be problematic?</summary>
+
+When we have the so-called stopwords: `"the", "and", "I", "but", etc`. Similar words may not be that important and may introduce noise.
+
+</details>
+
+Here's some text:
+
+```python
+'The cat is in the box. The cat likes the box. The box is over the cat.'
+```
+
+<details>
+
+<summary>What would bag-of-words produce if we were to strip the punctuation?</summary>
+
+- "The": 3
+- "box": 3
+- "cat": 3
+- "the": 3
+- "is": 2
+- "in": 1
+- "likes": 1
+- "over": 1
+
+</details>
+
+<details>
+
+<summary>How can we do this in Python?</summary>
+
+The Python [Counter](https://docs.python.org/3/library/collections.html#collections.Counter) can be really helpful here:
+
+```python
+import collections
+from nltk import tokenize
+counter = collections.Counter(tokenize.word_tokenize('The cat is in the box. The cat likes the box. The box is over the cat.'))
+counter
+```
+
+```console
+Counter({'The': 3, 'cat': 3, 'the': 3, 'box': 3, '.': 3, 'is': 2, 'in': 1, 'likes': 1, 'over': 1})
+```
+
+It also has a pretty useful method - `most_common`:
+
+```python
+counter.most_common(2)
+```
+
+```console
+[('The', 3), ('cat', 3)]
+```
+
+</details>
+
+- `sklearn` has its own implementation in the class [CountVectorizer](https://scikit-learn.org/stable/modules/generated/sklearn.feature_extraction.text.CountVectorizer.html):
+  - Turns a text into bag-of-words vectors.
+  - Can also remove stopwords via its `stop_words='english'` parameter setting.
+    - Same applies to removing punctuation.
+  - Returns `scipy.sparse.csr_matrix`.
+
+```python
+from sklearn.feature_extraction.text import CountVectorizer
+corpus = [
+    'This is the first document.',
+    'This document is the second document.',
+    'And this is the third one.',
+    'Is this the first document?',
+]
+vectorizer = CountVectorizer()
+X = vectorizer.fit_transform(corpus)
+print(X.toarray())
+vectorizer.get_feature_names_out()
+```
+
+```console
+[[0 1 1 1 0 0 1 0 1]
+ [0 2 0 1 0 1 1 0 1]
+ [1 0 0 1 1 0 1 1 1]
+ [0 1 1 1 0 0 1 0 1]]
+array(['and', 'document', 'first', 'is', 'one', 'second', 'the', 'third',
+       'this'], dtype=object)
+```
+
+We can also create bigrams:
+
+```python
+vectorizer2 = CountVectorizer(analyzer='word', ngram_range=(2, 2))
+X2 = vectorizer2.fit_transform(corpus)
+print(X2.toarray())
+vectorizer2.get_feature_names_out()
+```
+
+```console
+[[0 0 1 1 0 0 1 0 0 0 0 1 0]
+ [0 1 0 1 0 1 0 1 0 0 1 0 0]
+ [1 0 0 1 0 0 0 0 1 1 0 1 0]
+ [0 0 1 0 1 0 1 0 0 0 0 0 1]]
+array(['and this', 'document is', 'first document', 'is the', 'is this',
+       'second document', 'the first', 'the second', 'the third',
+       'third one', 'this document', 'this is', 'this the'], dtype=object)
+```
+
+Which of the below options, with basic `nltk` tokenization, maps the bag-of-words for the following text?
+
+`"The cat is in the box. The cat box."`
+
+```text
+A. ('the', 3), ('box.', 2), ('cat', 2), ('is', 1)
+B. ('The', 3), ('box', 2), ('cat', 2), ('is', 1), ('in', 1), ('.', 1)
+C. ('the', 3), ('cat box', 1), ('cat', 1), ('box', 1), ('is', 1), ('in', 1)
+D. ('The', 2), ('box', 2), ('.', 2), ('cat', 2), ('is', 1), ('in', 1), ('the', 1)
+```
+
+<details>
+
+<summary>Reveal answer</summary>
+
+Answer: D.
+
+</details>
+
+Let's now contrast this with `tf-idf`.
+
+<details>
+
+<summary>What does "tf" stand for?</summary>
+
+Term frequency.
+
+</details>
+
+<details>
+
+<summary>What does "idf" stand for?</summary>
+
+Inverse document frequency.
+
+</details>
+
+<details>
+
+<summary>Explain "tf-idf" - what do the different parts mean?</summary>
+
+- `tf`: number of times a token is present in a document;
+- `idf`: number of documents / number of documents that contain the token.
+
+</details>
+
+<details>
+
+<summary>What is the use-case for "tf-idf"?</summary>
+
+Allows us to determine the most important words in a document by weighing them. Notice: important `!=` common. In other words, it keeps document specific frequent words weighted high.
+
+</details>
+
+<details>
+
+<summary>How does "tf-idf" treat stopwords?</summary>
+
+It assigns lower weights to them as they are present in almost every document. This ensures most common words don't show up as key words.
+
+</details>
+
+<details>
+
+<summary>What is the formula for "tf-idf"?</summary>
+
+$$w_{i,j} = tf_{i,j} * ln \left[ \frac{N}{1 + df_i} \right]$$
+
+, where:
+
+- $tf_{i,j} =$ number of occurrences of token $i$ in document $j$.
+- $N =$ total number of documents.
+- $df_{i,j} =$ number of documents that contain token $i$.
+- $w_{i,j} =$ tf-df weight for token $i$ in document $j$.
+
+</details>
+
+You want to calculate the tf-idf weight for the word `computer`, which appears five times in a document containing a hundred words. Given a corpus containing two hundred documents, with twenty documents mentioning the word `computer`, which of the below options is correct?
+
+```text
+A. (5 / 100) * ln(200 / 20)
+B. (5 * 100) / ln(200 * 20)
+C. (20 / 5) * ln(200 / 20)
+D. (200 * 5) * ln(400 / 5)
+```
+
+<details>
+
+<summary>Reveal answer</summary>
+
+Answer: A.
+
+</details>
+
+## Text preprocessing
+
+<details>
+
+<summary>Why preprocess at all?</summary>
+
+- Helps make for better input data.
+- Increases quality of data.
+- Removes noise - commonly used words `"the"`, `"and"` and similar may not be that important.
+
+</details>
+
+<details>
+
+<summary>Have you heard of any examples of preprocessing?</summary>
+
+- Tokenization to create a bag-of-words.
+- Lowercasing.
+- Removing `stopwords` - `"the"`, `"and"`, `"but"`, `"a"`, `"on"`, `"at"`, etc.
+
+```python
+import nltk
+nltk.download('stopwords')
+nltk.corpus.stopwords.words('english')
+```
+
+```console
+['i', 'me', 'my', 'myself', 'we', 'our', 'ours', 'ourselves', 'you', "you're", "you've", "you'll", "you'd", 'your', 'yours', 'yourself', 'yourselves', 'he', 'him', 'his', 'himself', 'she', "she's", 'her', 'hers', 'herself', 'it', "it's", 'its', 'itself', 'they', 'them', 'their', 'theirs', 'themselves', 'what', 'which', 'who', 'whom', 'this', 'that', "that'll", 'these', 'those', 'am', 'is', 'are', 'was', 'were', 'be', 'been', 'being', 'have', 'has', 'had', 'having', 'do', 'does', 'did', 'doing', 'a', 'an', 'the', 'and', 'but', 'if', 'or', 'because', 'as', 'until', 'while', 'of', 'at', 'by', 'for', 'with', 'about', 'against', 'between', 'into', 'through', 'during', 'before', 'after', 'above', 'below', 'to', 'from', 'up', 'down', 'in', 'out', 'on', 'off', 'over', 'under', 'again', 'further', 'then', 'once', 'here', 'there', 'when', 'where', 'why', 'how', 'all', 'any', 'both', 'each', 'few', 'more', 'most', 'other', 'some', 'such', 'no', 'nor', 'not', 'only', 'own', 'same', 'so', 'than', 'too', 'very', 's', 't', 'can', 'will', 'just', 'don', "don't", 'should', "should've", 'now', 'd', 'll', 'm', 'o', 're', 've', 'y', 'ain', 'aren', "aren't", 'couldn', "couldn't", 'didn', "didn't", 'doesn', "doesn't", 'hadn', "hadn't", 'hasn', "hasn't", 'haven', "haven't", 'isn', "isn't", 'ma', 'mightn', "mightn't", 'mustn', "mustn't", 'needn', "needn't", 'shan', "shan't", 'shouldn', "shouldn't", 'wasn', "wasn't", 'weren', "weren't", 'won', "won't", 'wouldn', "wouldn't"]
+```
+
+- Removing punctuation.
+- Removing other unwanted tokens.
+
+</details>
+
+<details>
+
+<summary>What are stemming and lemmatization? What are the problems they solve?</summary>
+
+![w09_stemming_vs_lemmatization.png](assets/w09_stemming_vs_lemmatization.png "w09_stemming_vs_lemmatization.png")
+
+`nltk.stem` provides implementations for:
+
+- Lemmatization: [WordNetLemmatizer](https://www.nltk.org/api/nltk.stem.WordNetLemmatizer.html?highlight=wordnet#nltk-stem-wordnetlemmatizer);
+- Stemming: [PorterStemmer](https://www.nltk.org/api/nltk.stem.PorterStemmer.html).
+
+</details>
+
+<details>
+
+<summary>How do we choose which processing techniques to apply?</summary>
+
+That is what the data audit is for!
+
+When we have the task in mind (classification, regression, something else) we can intuit what text features might be useful and how to obtain them.
+
+As always the best approach is discovered via multiple experiments of using a single or a combination of techniques and choosing the one(s) leading to the highest metrics.
+
+</details>
+
+<details>
+
+<summary>If we have to classify whether a review of a hotel is positive or negative, would the removal of stopwords be helpful?</summary>
+
+Most definitely! We're interested in discovering what combination of words lead to positive sentiment and what to negative.
+
+</details>
+
+<details>
+
+<summary>When would the removal of stopwords be harmful?</summary>
+
+For example, when we want to discover authorship styles. The task about [Author profiling](https://en.wikipedia.org/wiki/Author_profiling) is focused precisely on finding out what tokens an author uses and using them to attribute texts to them.
+
+</details>
+
+Which of the following are all useful text preprocessing steps?
+
+```text
+A. Stems, spelling corrections, lowercase.
+B. Lemmatization, lowercasing, removing unwanted tokens.
+C. Removing stop words, leaving in capital words.
+D. Strip stop words, word endings and digits.
+```
+
+<details>
+
+<summary>Reveal answer</summary>
+
+Answer: B.
+
+</details>
+
+What are word vectors and how do they help with NLP?
+
+```text
+A. They are similar to bags of words, just with numbers. You use them to count how many tokens there are.
+B. Word vectors are sparse arrays representing bigrams in the corpora. You can use them to compare two sets of words to one another.
+C. Word vectors are multi-dimensional mathematical representations of words created using deep learning methods. They give us insight into relationships between words in a corpus.
+D. Word vectors don't actually help NLP and are just hype.
+```
+
+<details>
+
+<summary>Reveal answer</summary>
+
+Answer: C.
+
+</details>
+
+## [Gensim](https://radimrehurek.com/gensim/auto_examples/index.html#documentation)
+
+- Popular open-source NLP library.
+- A more powerful alternative to `nltk`.
+- Can be used to perform complex NLP tasks:
+  - Building document vectors.
+  - Building word vectors.
+  - Topic identification.
+  - Document comparison.
+- `gensim` objects can be easily saved, updated and reused.
+
+Gensim allows you to build corpora and dictionaries using classes and functions.
+
+Open the documentation and answer the following questions.
+
+<details>
+
+<summary>How can we create a mapping with a numeric identifier for each token?</summary>
+
+We can use the class `Dictionary` class:
+
+```python
+from gensim.corpora.dictionary import Dictionary
+from nltk.tokenize import word_tokenize
+
+my_documents = ['The movie was about a spaceship and about aliens.','I really liked the movie!','Awesome action scenes, but boring characters.','The movie was awful! I hate alien films.','Space is cool! I liked the movie.','More space films, please!',]
+
+tokenized_docs = [word_tokenize(doc.lower()) for doc in my_documents]
+dictionary = Dictionary(tokenized_docs)
+dictionary.token2id
+```
+
+```console
+{'.': 0, 'a': 1, 'about': 2, 'aliens': 3, 'and': 4, 'movie': 5, 'spaceship': 6, 'the': 7, 'was': 8, '!': 9, 'i': 10, 'liked': 11, 'really': 12, ',': 13, 'action': 14, 'awesome': 15, 'boring': 16, 'but': 17, 'characters': 18, 'scenes': 19, 'alien': 20, 'awful': 21, 'films': 22, 'hate': 23, 'cool': 24, 'is': 25, 'space': 26, 'more': 27, 'please': 28}
+```
+
+</details>
+
+We now can represent whole documents using:
+
+- A list of their token ids.
+- How often those tokens appear in each document.
+
+<details>
+
+<summary>Which method converts a document into the bag-of-words format?</summary>
+
+The method `doc2bow` converts a document into the format `(token_id, token_count)`, sorted by `token_id`:
+
+```python
+corpus = [dictionary.doc2bow(doc) for doc in tokenized_docs]
+corpus
+```
+
+```console
+[[(0, 1), (1, 1), (2, 2), (3, 1), (4, 1), (5, 1), (6, 1), (7, 1), (8, 1)], [(5, 1), (7, 1), (9, 1), (10, 1), (11, 1), (12, 1)], [(0, 1), (13, 1), (14, 1), (15, 1), (16, 1), (17, 1), (18, 1), (19, 1)], [(0, 1), (5, 1), (7, 1), (8, 1), (9, 1), (10, 1), (20, 1), (21, 1), (22, 1), (23, 1)], [(0, 1), (5, 1), (7, 1), (9, 1), (10, 1), (11, 1), (24, 1), (25, 1), (26, 1)], [(9, 1), (13, 1), (22, 1), (26, 1), (27, 1), (28, 1)]]
+```
+
+</details>
+
+## Named Entity Recognition
+
+<details>
+
+<summary>What is named entity recognition (NER)?</summary>
+
+- NLP task to identify important named entities in a text:
+  - people;
+  - places;
+  - organizations;
+  - dates;
+  - states;
+  - works of art;
+  - etc., etc.
+- Can be used alongside topic identification.
+- Main use-case for NER is answering questions related to a text:
+  - Who?
+  - What?
+  - When?
+  - Where?
+- Give an example with the `payee model`.
+
+</details>
+
+Here's an example:
+
+![w09_ner.png](assets/w09_ner.png "w09_ner.png")
+
+### Using `nltk`
+
+```python
+import nltk
+nltk.download('averaged_perceptron_tagger_eng')
+sentence = '''In New York, I like to ride the Metro to
+              visit MOMA and some restaurants rated
+              well by Ruth Reichl.'''
+tokenized_sent = nltk.word_tokenize(sentence)
+tagged_sent = nltk.pos_tag(tokenized_sent)
+tagged_sent[:3]
+```
+
+```console
+[('In', 'IN'), ('New', 'NNP'), ('York', 'NNP')]
+```
+
+To get information about the various POS (part-of-speech) tags, use the following:
+
+```python
+import nltk
+nltk.download('tagsets_json')
+nltk.help.upenn_tagset()
+```
+
+```console
+$: dollar
+    $ -$ --$ A$ C$ HK$ M$ NZ$ S$ U.S.$ US$
+'': closing quotation mark
+    ' ''
+(: opening parenthesis
+    ( [ {
+): closing parenthesis
+    ) ] }
+,: comma
+    ,
+--: dash
+    --
+.: sentence terminator
+    . ! ?
+:: colon or ellipsis
+    : ; ...
+CC: conjunction, coordinating
+    & 'n and both but either et for less minus neither nor or plus so
+    therefore times v. versus vs. whether yet
+CD: numeral, cardinal
+    mid-1890 nine-thirty forty-two one-tenth ten million 0.5 one forty-
+    seven 1987 twenty '79 zero two 78-degrees eighty-four IX '60s .025
+    fifteen 271,124 dozen quintillion DM2,000 ...
+DT: determiner
+    all an another any both del each either every half la many much nary
+    neither no some such that the them these this those
+EX: existential there
+    there
+FW: foreign word
+    gemeinschaft hund ich jeux habeas Haementeria Herr K'ang-si vous
+    lutihaw alai je jour objets salutaris fille quibusdam pas trop Monte
+    terram fiche oui corporis ...
+...
+```
+
+```python
+import nltk
+nltk.download('maxent_ne_chunker_tab')
+nltk.download('words')
+sentence = '''In New York, I like to ride the Metro to
+              visit MOMA and some restaurants rated
+              well by Ruth Reichl.'''
+tokenized_sent = nltk.word_tokenize(sentence)
+tagged_sent = nltk.pos_tag(tokenized_sent)
+print(nltk.ne_chunk(tagged_sent))
+```
+
+```console
+(S
+  In/IN
+  (GPE New/NNP York/NNP)
+  ,/,
+  I/PRP
+  like/VBP
+  to/TO
+  ride/VB
+  the/DT
+  (ORGANIZATION Metro/NNP)
+  to/TO
+  visit/VB
+  (ORGANIZATION MOMA/NNP)
+  and/CC
+  some/DT
+  restaurants/NNS
+  rated/VBN
+  well/RB
+  by/IN
+  (PERSON Ruth/NNP Reichl/NNP)
+  ./.)
+```
+
+### What is [SpaCy](https://spacy.io/)?
+
+- NLP library, similar to `gensim`, with different implementations.
+- Open-source, with extra libraries and tools:
+  - [Displacy](https://demos.explosion.ai/displacy): visualization tool for viewing parse trees which uses Node-js to create interactive text.
+  - [Displacy Entity Recognition Visualizer](https://demos.explosion.ai/displacy-ent/).
+- Easy creation of multi-step pipelines.
+- Has different entity types compared to `nltk`.
+- Great informal language corpora: easily find entities in Tweets and chat messages.
+
+```python
+import spacy
+nlp = spacy.load("en_core_web_sm")
+nlp.get_pipe("ner").labels
+```
+
+```console
+('CARDINAL', 'DATE', 'EVENT', 'FAC', 'GPE', 'LANGUAGE', 'LAW', 'LOC', 'MONEY', 'NORP', 'ORDINAL', 'ORG', 'PERCENT', 'PERSON', 'PRODUCT', 'QUANTITY', 'TIME', 'WORK_OF_ART')
+```
+
+```python
+import spacy
+nlp_pipeline = spacy.load('en_core_web_sm')
+nlp_pipeline.get_pipe('ner')
+```
+
+```console
+<spacy.pipeline.ner.EntityRecognizer object at 0x796d209882e0>
+```
+
+```python
+doc = nlp_pipeline('''Berlin is the capital of Germany;
+                           and the residence of Chancellor Angela Merkel.''')
+doc.ents
+```
+
+```console
+(Berlin, Germany, Angela Merkel)
+```
+
+```python
+doc.ents[0], doc.ents[0].label_
+```
+
+```console
+(Berlin, 'GPE')
+```
+
+## The Naive Bayes Classifier
+
+- Based on probability.
+- Simple and effective, but naive because it assumes all features are completely independent/uncorrelated.
+- Given a particular piece of data, how likely is a particular outcome?
+  - If a film's plot has a spaceship, how likely is it to be a sci-fi?
+  - Given a spaceship **and** an alien, how likely **now** is it sci-fi?
+
+Imagine we receive:
+
+- **normal emails** from friends and family;
+- and we also receive some **spam email**: unwanted emails that are usually scams or unsolicited advertisements.
+
+We don't want the spam messages so we try to create an algorithm that filters them out.
+
+1. We tokenize all of the emails and get a list of tokens.
+2. For each of our classes $C_k$ (here $k = 2$ since we have normal and spam emails):
+   1. We calculate its **prior probability**:
+      $$P(C_k) = \frac{|C_k|}{\sum_i |C_i|}$$
+   2. And the **likelihood** of seeing each word $w_i$:
+      $$P(w_i | C_k) = \frac{|\{{w_i | w \in C_k, w = w_i}\}|}{|C_k|}$$
+3. For any new email, we predict the class with the highest probability:
+
+$$\displaystyle {\hat {y}}={\underset {k\in \{1,\ldots ,K\}}{\operatorname {argmax} }}\ P(C_{k})\displaystyle \prod _{i=1}^{n}P(w_{i}\mid C_{k}).$$
+
+Let's say we have the following probabilities:
+
+- $P(\text{Dear} | N) = 0.47$
+- $P(\text{Friend} | N) = 0.29$
+- $P(\text{Lunch} | N) = 0.18$
+- $P(\text{Money} | N) = 0.06$
+- $P(\text{Dear} | S) = 0.29$
+- $P(\text{Friend} | S) = 0.14$
+- $P(\text{Lunch} | S) = 0$
+- $P(\text{Money} | S) = 0.57$
+
+And we have a total of $12$ emails, $8$ of which are non-spam.
+
+<details>
+
+<summary>What type of email would an email having the text "Dear Friend" be?</summary>
+
+We calculate the likelihood the email is normal if it has those words:
+
+$$P(N) = \frac{8}{8 + 4} = 0.67$$
+$$P(N) * P(\text{Dear} | N) * P(\text{Friend} | N) = 0.67 * 0.47 * 0.29 = 0.09 \propto P(N | \text{Dear Friend})$$
+
+And the likelihood that it'd be spam:
+
+$$P(S) = \frac{4}{8 + 4} = 0.33$$
+$$P(S) * P(\text{Dear} | N) * P(\text{Friend} | N) = 0.33 * 0.29 * 0.14 = 0.01 \propto P(S | \text{Dear Friend})$$
+
+Because $0.09 > 0.01$, we'll predict `Normal` for this case.
+
+</details>
+
+Let's say we now got an email with the text `"Money Money Lunch Money Money"`.
+
+<details>
+
+<summary>Intuitively what type of email do you think it is?</summary>
+
+Since initially $P(\text{Money} | S) = 0.57 > 0.06 = P(\text{Money} | N)$ it's reasonable to conclude that this is a `Spam` message.
+
+</details>
+
+Great! Let's do the math!
+
+<details>
+
+<summary>What class do we get?</summary>
+
+We calculate the likelihood the email is normal if it has those words:
+
+$$P(N | \text{Money Money Lunch Money Money}) = P(N) * P(\text{Lunch} | N) * P(\text{Money} | N)^4 = 0.000002$$
+
+However, when we do the calculation for `Spam`:
+
+$$P(S | \text{Money Money Lunch Money Money}) = P(S) * P(\text{Lunch} | S) * P(\text{Money} | S)^4 = 0$$
+
+We get $0$ since $P(\text{Lunch} | S) = 0$!
+
+</details>
+
+Oops ... this is bad.
+
+<details>
+
+<summary>How can we get around this problem?</summary>
+
+In practice, we usually:
+
+- Add a small Laplace/Lidstone smoothing parameter, called $\alpha$, by default $\alpha = 1$;
+- Use the logarithm for numerical stability when a lot of probabilities are multiplied.
+
+Thus, this is the final formula:
+
+$$\hat{y} = \underset{k}{\operatorname {argmax}} \ln P(C_k) + \sum_{i=1}^n \ln \left[ \frac{\text{count}(w_i, C_k) + \alpha}{\sum_{w \in V} \text{count}(w, C_k) + \alpha \cdot |V|} \right]$$
+
+Where $|V|$ is the size of the vocabulary - the number of all words in the classes.
+
+</details>
+
+- The above is implemented in `sklearn` as [sklearn.naive_bayes.MultinomialNB](https://scikit-learn.org/stable/modules/generated/sklearn.naive_bayes.MultinomialNB.html#multinomialnb)
+- Each word from `CountVectorizer` can act as a feature since the multinomial distribution normally requires integer feature counts. However, in practice, fractional counts such as `tf-idf` also work.
+
+<details>
+
+<summary>So why is Naive Bayes naive?</summary>
+
+It treat all word orders the same the score for `Dear Friend` is the same as for `Friend Dear`.
+
+The same can be said in another way: **there is an assumption of conditional independence between every pair of features given the value of the class variable**.
+
+Bayes’ theorem states the following relationship, given class variable $y$ and dependent feature vector $x_1$ through $x_n$,:
+
+$$P(y \mid x_1, \dots, x_n) = \frac{P(y) P(x_1, \dots, x_n \mid y)}
+                                 {P(x_1, \dots, x_n)}$$
+
+Using the naive conditional independence assumption that:
+
+$$P(x_i | y, x_1, \dots, x_{i-1}, x_{i+1}, \dots, x_n) = P(x_i | y),$$
+
+for all $i$, this relationship is simplified to:
+
+$$P(y \mid x_1, \dots, x_n) = \frac{P(y) \prod_{i=1}^{n} P(x_i \mid y)}
+                                 {P(x_1, \dots, x_n)}$$
+
+Since $P(x_1, \dots, x_n)$ is constant given the input, we arrive at the initial classification rule:
+
+$$\begin{align}\begin{aligned}P(y \mid x_1, \dots, x_n) \propto P(y) \prod_{i=1}^{n} P(x_i \mid y)\\\Downarrow\\\hat{y} = \arg\max_y P(y) \prod_{i=1}^{n} P(x_i \mid y),\end{aligned}\end{align}$$
+
+</details>
+
+Note that although naive Bayes is known as a decent classifier, it is known to be a **bad estimator**, so the probability outputs from `predict_proba` are not to be taken too seriously. In other words, Naive Bayes:
+
+- has **low variance**;
+- but **high bias**.
+
+Which of the following are possible features for a text classification problem?
+
+```text
+A. Number of words in a document.
+B. Specific named entities.
+C. Language.
+D. All of the above.
+```
+
+<details>
+
+<summary>Reveal answer</summary>
+
+Answer: D.
+
+</details>
+
+Which of the below is the most reasonable model to use when training a new supervised model using text vector data?
+
+```text
+A. Random Forests
+B. Naive Bayes
+C. Linear Regression
+D. Deep Learning
+```
+
+<details>
+
+<summary>Reveal answer</summary>
+
+Answer: B.
 
 </details>
