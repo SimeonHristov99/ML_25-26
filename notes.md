@@ -203,6 +203,9 @@
     - [Using `nltk`](#using-nltk)
     - [What is SpaCy?](#what-is-spacy)
   - [The Naive Bayes Classifier](#the-naive-bayes-classifier)
+- [Week 10 - Hello, Deep Learning. Implementing a Multilayer Perceptron](#week-10---hello-deep-learning-implementing-a-multilayer-perceptron)
+  - [So what can deep learning models model?](#so-what-can-deep-learning-models-model)
+  - [Modeling a neuron that can multiply by `2`](#modeling-a-neuron-that-can-multiply-by-2)
 
 # Week 01 - Numpy, Pandas, Matplotlib & Seaborn
 
@@ -8741,5 +8744,156 @@ D. Deep Learning
 <summary>Reveal answer</summary>
 
 Answer: B.
+
+</details>
+
+# Week 10 - Hello, Deep Learning. Implementing a Multilayer Perceptron
+
+What is your experience with deep learning? Who has built a deep learning model? What was it about?
+
+<details>
+
+<summary>What is deep learning?</summary>
+
+- Deep learning is a class of algorithms that solve the task of `automatic pattern recognition`.
+- There are two main paradigms of programming: `imperative` and `functional`. Deep learning can be regarded as a third paradigm, different from the other two as follows: let's say you have a particular `task` you want to solve.
+  - In imperative and functional programming, `you write the code directly`; you tell the machine what it has to do **explicitly** and you write exactly the code solves the task by outlining and connecting multiple steps together (i.e. **you** create an algorithm).
+  - In deep learning you are **not** explicitly / directly writing the logic that would solve the task. Instead, you build a `deep learning model` that models the task you are tying to solve and **the model itself creates the algorithm** for solving your task.
+- A deep learning model is a set of parameters connected in various ways. It solves tasks by finding optimal values of those parameters - i.e. values for which it can in **most** cases solve a task. The word **most** is important - notice that all a deep learning model is an `automatic mathematical optimization model` for a set of parameters. **`It solves tasks by approximation, not by building explicit logic`**.
+- The process during which the model optimizes its parameters is called `training`.
+
+</details>
+
+<details>
+
+<summary>How are deep learning models built?</summary>
+
+Deep learning models are built by codifying the `description` of the desired model behavior. This description of the expected behavior is `implicitly` hidden in the data in the form of `patterns`. Thus, deep learning is uncovering those patterns and using them to solve various problems.
+
+The process is called `training` - you give the untrained model your data (your `description` of desired behavior) and the model "tweaks" its parameters until it fits your description well enough. And there you have it - a deep learning model that does what you want (probably 😄 (i.e. with a certain probability, because it's never going to be perfect)).
+
+You can think about the "tweaking" process as the process in which multiple models are created each with different values for their parameters, their accuracies are compared and the model with the highest accuracy is chosen as the final version.
+
+</details>
+
+## So what can deep learning models model?
+
+Here is the twist - `everything`! For any task as long as you have enough data, you can model it.
+
+One of the things you can model is **the probability of the next word in a sentence**. Surprise - the models that solve these types of tasks are called `Large Language Models`! You have a partially written sentence and you can create a mathematical model that predicts how likely every possible word, in the language you're working in, is to be the next word in that sentence. And after you've selected the word, you can repeat the process on this extended sentence - that's how you get `ChatGPT`.
+
+## Modeling a neuron that can multiply by `2`
+
+![w10_multiplier.png](assets/w10_multiplier.png "w10_multiplier.png")
+
+We want to teach the model that `w` has to equal `2`.
+
+<details>
+
+<summary>How would we go about doing this?</summary>
+
+1. We start with a random guess for `w`. For the sake of concreteness, let's say a random floating-point number in the interval `[0, 10)`. The interval does not matter  - even if it does not contain `2` the traning process would converge towards it.
+
+![w10_multiplier_guess.png](assets/w10_multiplier_guess.png "w10_multiplier_guess.png")
+
+2. We calculate the value of the loss function at that initial random guess.
+
+![w10_multiplier_loss.png](assets/w10_multiplier_loss.png "w10_multiplier_loss.png")
+
+3. We can see what will happen if we "wiggle" `w` by a tiny amount `eps`.
+
+![w10_multiplier_loss_wiggle.png](assets/w10_multiplier_loss_wiggle.png "w10_multiplier_loss_wiggle.png")
+
+4. So, the value either goes up or down. This means that our loss function would represent a parabola.
+
+![w10_multiplier_loss_viz.png](assets/w10_multiplier_loss_viz.png "w10_multiplier_loss_viz.png")
+
+5. If only we had a way to always know in which direction the value would go down? Oh, wait - we do! It's the opposite direction of the one in which the derivative grows!
+
+![w10_derivative_values.gif](assets/w10_derivative_values.gif "w10_derivative_values.gif")
+
+For now, we won't calculate the exact derivative because we don't need to do that - we can use its general formula:
+
+$${\displaystyle L=\lim _{eps\to 0}{\frac {loss(w+eps)-loss(w)}{eps}}}$$
+
+6. We can then use `L` to step in the direction of decline, by doing: `w -= L`.
+
+7. This, however, will have a problem: the value of `L` might be very high. If our step is always `L` we would start oscilating. Therefore, we'll use a learning rate that will say how large our step would be: `w -= learning_rate * L`.
+
+And this is it! This process is guaranteed to find `2` as the optimal value. Moreover, this iterative algorithm for minimizing a differentiable multivariate function is what is also known as [Gradient Descent](https://en.wikipedia.org/wiki/Gradient_descent) 😇.
+
+</details>
+
+<details>
+
+<summary>What would the architecture and process for creating a model of an "AND" logical gate look like?</summary>
+
+We might start off with something like this:
+
+![w10_and_or_models.png](assets/w10_and_or_models.png "w10_and_or_models.png")
+
+However, because our task now shifts from being a regression one into a classification one, we can also add the `sigmoid` function to control the output values:
+
+$${\displaystyle f(x)={\frac {1}{1+e^{-x}}}}$$
+
+![w10_and_or_models_sigmoid.png](assets/w10_and_or_models_sigmoid.png "w10_and_or_models_sigmoid.png")
+
+<details>
+
+<summary>But! Adding the sigmoid activation function actually causes another problem - for what values of w1 and w2 would we have a problem?</summary>
+
+Look at what happens when we have $w_1=0$ and $w_2=0$ (our model is guessing correctly that the output should be `0`):
+
+![w10_sigmoid_problem.png](assets/w10_sigmoid_problem.png "w10_sigmoid_problem.png")
+
+</details>
+
+<details>
+
+<summary>How do we fix this?</summary>
+
+We need to keep the weights at `0` but also add another term that can control the logit value when all weights are `0`. Welcome, ***bias***.
+
+![w10_bias.png](assets/w10_bias.png "w10_bias.png")
+
+</details>
+
+</details>
+
+<details>
+
+<summary>How do we model the "XOR" logical gate?</summary>
+
+Let's see how the classes are distributed in `2D` space:
+
+![w10_class_distribution.png](assets/w10_class_distribution.png "w10_class_distribution.png")
+
+The models we defined above are actually called perceptrons. They calculate a weighted sum of their inputs and thresholds it with a step function.
+
+Geometrically, this means **the perceptron can separate its input space with a hyperplane**. That’s where the notion that a perceptron can only separate linearly separable problems comes from.
+
+Since the `XOR` function **is not linearly separable**, it really is impossible for a single hyperplane to separate it.
+
+<details>
+
+<summary>What are our next steps then?</summary>
+
+We need to describe the `XOR` gate using non-`XOR` gates. This can be done:
+
+`(x|y) & ~(x&y)`
+
+So, the `XOR` model can then be represented using the following architecture:
+
+![w10_xor_architecture.png](assets/w10_xor_architecture.png "w10_xor_architecture.png")
+
+<details>
+
+<summary>How many parameters would we have in total?</summary>
+
+9
+
+</details>
+
+</details>
 
 </details>
