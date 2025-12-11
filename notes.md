@@ -9190,3 +9190,277 @@ Another difference is that the output of `tanh` is symmetric around zero, which 
 - `__le__(self, other)`: Defines behavior for the less-than-or-equal-to operator, `<=`.
 - `__ge__(self, other)`: Defines behavior for the greater-than-or-equal-to operator, `>=`.
 
+# Week 12 - Hello, PyTorch
+
+## PyTorch Dataset
+
+<details>
+
+<summary>What do you know about PyTorch?</summary>
+
+[PyTorch](https://pytorch.org/docs/stable/index.html) is an optimized tensor library for deep learning using GPUs and CPUs.
+
+- Open source.
+- Created by Meta.
+- It has everything needed to create a data preprocessing, model training and model evaluation pipeline.
+
+We'll refer to any `n`-dimensional numpy array as a **tensor**.
+
+![w12_tensor_meme](assets/w12_tensor_meme.png "w12_tensor_meme.png")
+
+If you would like a more rigorous Math definition and are curious about the history of the term, feel free to read [this paper](https://arxiv.org/pdf/2510.12269).
+
+</details>
+
+This week we'll be working with `the water potability dataset`. The task is to classify a water sample as potable or drinkable (`1` or `0`) based on its chemical characteristics. All features have been normalized to between zero and one. Two files are present in our `DATA` folder: `water_train.csv` and `water_test.csv`. Here's how both of them look like:
+
+![w12_water_potability_datasets.png](assets/w12_water_potability_datasets.png "w12_water_potability_datasets.png")
+
+We can create a custom dataset for our data by inheriting the PyTorch [Dataset class](https://pytorch.org/docs/stable/data.html#torch.utils.data.Dataset). All customs `Dataset` classes must implement the following methods:
+
+- `__init__`: to loads and saves the data in the state of the class. Typically accepts a CSV or an already loaded numpy matrix;
+- `__len__`: returns the number of instaces in the saved data;
+- `__getitem__`: returns the features and label for a single sample. Note: this method returns **a tuple**! The first element is an array of the features, the second is the label.
+
+See an example [here](https://pytorch.org/tutorials/beginner/basics/data_tutorial.html#creating-a-custom-dataset-for-your-files).
+
+> **Note:** While it's not shown in the example, please don't forget to initialize the parent class as well by calling `super().__init__()`.
+
+## PyTorch Dataloader
+
+<details>
+
+<summary>What is batch size?</summary>
+
+A subsample of `n` instances. The batch size is used to split the dataset into multiple smaller dataset each with `n` instances. The benefit we get is having a smaller amount of data for one iteration of the training loop and faster training in general since the matrix calculations happen much faster.
+
+</details>
+
+The `Dataset` class retrieves our dataset’s features and labels one sample at a time.
+
+While training a model, we typically want to:
+
+- pass samples in `minibatches`;
+- reshuffle the data at every epoch to reduce model overfitting;
+- use Python’s `multiprocessing` package to speed up data retrieval.
+
+The [`DataLoader` class](https://pytorch.org/docs/stable/data.html#torch.utils.data.DataLoader) is an iterable that abstracts this complexity for us in an easy API.
+
+```python
+from torch.utils.data import DataLoader
+
+train_dataloader = DataLoader(training_data, batch_size=64, shuffle=True)
+test_dataloader = DataLoader(test_data, batch_size=64, shuffle=True)
+```
+
+We can then iterate through those objects via a `for` loop or manually:
+
+```python
+# Display image and label.
+train_features, train_labels = next(iter(train_dataloader))
+print(f"Feature batch shape: {train_features.size()}")
+print(f"Labels batch shape: {train_labels.size()}")
+img = train_features[0].squeeze() # Removes dimensions of size 1. Shape (A×1×B×C×1×D) becomes (A×B×C×D).
+label = train_labels[0]
+plt.imshow(img, cmap="gray")
+plt.show()
+print(f"Label: {label}")
+```
+
+## PyTorch Model
+
+- We can define neural networks in two ways: `sequential` and `class-based`. We'll focus on the `class-based` approach as it provides more flexibility.
+- All functions and methods that work with neural networks can be found in the [torch.nn package](https://pytorch.org/docs/stable/nn.html). By convention `torch.nn` gets imported with an alias `nn`.
+
+Here's an example of sequential model definition:
+
+```python
+import torch.nn as nn
+
+net = nn.Sequential(
+  nn.Linear(9, 16),
+  nn.ReLU(),
+  nn.Linear(16, 8),
+  nn.ReLU(),
+  nn.Linear(8, 1),
+  nn.Sigmoid(),
+)
+```
+
+The same can be written using the `class-based` approach:
+
+```python
+class Net(nn.Module):
+  def __init__(self):
+    super(Net, self).__init__()
+    self.fc1 = nn.Linear(9, 16)
+    self.fc2 = nn.Linear(16, 8)
+    self.fc3 = nn.Linear(8, 1)
+  
+  def forward(self, x):
+    x = nn.functional.relu(self.fc1(x))
+    x = nn.functional.relu(self.fc2(x))
+    x = nn.functional.sigmoid(self.fc3(x))
+    return x
+
+net = Net()
+```
+
+As can be seen above, every model should define the following two methods:
+
+- `__init__()`: defines the layers that are used in the `forward()` method;
+- `forward()`: defines what happens to the model inputs once it receives them; this is where you pass inputs through pre-defined layers.
+
+By convention `torch.nn.functional` gets imported with an alias `F`. That means that the above body of `forward` can be rewritten like:
+
+```python
+import torch.nn.functional as F
+
+...
+
+x = F.relu(self.fc1(x))
+x = F.relu(self.fc2(x))
+x = F.sigmoid(self.fc3(x))
+```
+
+- PyTorch has many famous deep learning models already built-in.
+- For example, various vision models can be found in the [torchvision.models package](https://pytorch.org/vision/0.9/models.html).
+
+## Training loop - PyTorch style
+
+Here is a general overview of the training loop using built-in PyTorch functions and classes.
+
+```python
+import torch.nn as nn
+import torch.optim as optim
+
+criterion = nn.BCELoss() # we define the loss function to use. BCE = Binary Cross Entropy
+optimizer = optim.SGD(net.parameters(), lr=0.01) # we set the optimizer. SGD = Stochastic Gradient Descent
+
+for epoch in range(1000):
+  for features, labels in dataloader_train:
+    optimizer.zero_grad() # clear the gradients
+    outputs = net(features) # forward pass
+    loss = criterion(outputs, labels.view(-1, 1)) # calculate the loss
+    loss.backward() # compute the gradients
+    optimizer.step() # tweak weights
+```
+
+## Optimizers
+
+- Stochastic Gradient Descent (SGD):
+  - Parameter update values depend on learning rate;
+  - Simple and efficient for basic models.
+  - Rarely used in practice, due to simplicity.
+
+- Adaptive Gradient (Adagrad):
+  - Adapts learning rate for each parameter;
+  - Good for sparse data;
+  - May decrease the learning rate too fast.
+
+- Root Mean Square Propagation (RMSprop):
+  - Update for each parameter based on the size of its previous gradients.
+
+- Adaptive Moment Estimation (Adam):
+  - Has an extension with weight decay, called `AdamW`, which is arguably the most versatile and widely used optimizer today.
+  - RMSprop + gradient momentum.
+  - Often `Adam` is used as the go-to optimizer.
+
+## Model evaluation - PyTorch style
+
+```python
+from torchmetrics import Accuracy
+
+acc = Accuracy(task='binary')
+
+net.eval()
+with torch.no_grad():
+  for features, labels in dataloader_test:
+    outputs = net(features)
+    preds = (outputs >= 0.5).float()
+    acc(preds, labels.view(-1, 1))
+
+accuracy = acc.compute()
+print(f'Accuracy" {accuracy}')
+```
+
+### Unstable gradients
+
+- **Vanishing gradients**: Gradients get smaller and smaller during backward pass.
+
+![w12_vanishing_gradients.png](./assets/w12_vanishing_gradients.png "w12_vanishing_gradients.png")
+
+- Results:
+  - Earlier layers get smaller parameter updates;
+  - Model does not learn.
+  - Loss becomes constant.
+
+- **Exploding gradients**: Gradients get larger and larger during backward pass.
+
+![w12_exploding_gradients.png](./assets/w12_exploding_gradients.png "w12_exploding_gradients.png")
+
+- Results:
+  - Parameter updates are too large.
+  - Loss becomes higher and higher.
+
+### Solutions to unstable gradients
+
+1. Proper weights initialization.
+2. More appropriate activation functions.
+3. Batch normalization.
+
+#### Proper weights initialization
+
+Good weight initialization ensures that the:
+
+- Variance of layer inputs = variance of layer outputs;
+- Variance of gradients is the same before and after a layer.
+
+How to achieve this depends on the activation function:
+
+- For ReLU and similar (sigmoid included), we can use [He/Kaiming initialization](https://paperswithcode.com/method/he-initialization).
+
+```python
+import torch.nn.init as init
+
+init.kaiming_uniform_(layer.weight) # https://pytorch.org/docs/stable/nn.init.html#torch.nn.init.kaiming_uniform_
+```
+
+#### More appropriate activation functions
+
+- Often the `ReLU` (rectified linear unit) activation function is used.
+
+![w12_relu.png](./assets/w12_relu.png "w12_relu.png")
+
+<details>
+
+<summary>ReLU is not differentiable at x=0. So, how do we implement backpropagation?</summary>
+
+For $x > 0$, the derivative of the ReLU function is $1$. For $x <= 0$, the derivative of the ReLU function is $0$. If $x == 0$, it's usually set either to $0$ or to a very small $eps$.
+
+</details>
+
+- It's available in `nn.functional.relu()`.
+- It suffers from the `dying neuron` problem because it's `0` for negative inputs.
+
+- Alternative of `ReLU` is `ELU` (Exponential Linear Unit ):
+
+![w12_elu.png](./assets/w12_elu.png "w12_elu.png")
+
+- Available in `nn.functional.elu()`.
+- Non-zero gradients for negative values - helps against dying neurons.
+- Average output is around `0` - helps against vanishing gradients.
+
+#### Batch normalization
+
+- Good choice of initial weights and activations doesn't prevent unstable gradients during training (only during initialization).
+- Solution is to add another transformation after each layer - batch normalization:
+  1. Standardizes the layer's outputs by subtracting the mean and diving by the standard deviation.
+  2. Scales and shifts the standardized outputs using learnable parameters.
+- Result:
+  - Model learns optimal distribution of inputs for each layer.
+  - Faster loss decrease.
+  - Helps against unstable gradients during training.
+- Available as [`nn.BatchNorm1d`](https://pytorch.org/docs/stable/generated/torch.nn.BatchNorm1d.html).
+  - **Note 1:** The number of features has to be equal to the number of output neurons of the previous layer.
+  - **Note 2:** Done after applying layer and before the activation.
