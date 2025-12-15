@@ -227,6 +227,21 @@
       - [Proper weights initialization](#proper-weights-initialization)
       - [More appropriate activation functions](#more-appropriate-activation-functions)
       - [Batch normalization](#batch-normalization)
+- [Week 13 - Convolutional Neural Networks](#week-13---convolutional-neural-networks)
+  - [The Clouds dataset](#the-clouds-dataset)
+  - [Converting pixels to tensors and tensors to pixels](#converting-pixels-to-tensors-and-tensors-to-pixels)
+    - [`ToTensor()`](#totensor)
+    - [`PILToTensor()`](#piltotensor)
+    - [`ToPILImage()`](#topilimage)
+  - [Loading images to PyTorch](#loading-images-to-pytorch)
+  - [Data augmentation](#data-augmentation)
+  - [CNNs - The neural networks for image processing](#cnns---the-neural-networks-for-image-processing)
+  - [Architecture](#architecture)
+  - [Cross-Entropy loss](#cross-entropy-loss)
+  - [Checkpoint](#checkpoint-2)
+  - [Precision \& Recall for Multiclass Classification (revisited)](#precision--recall-for-multiclass-classification-revisited)
+    - [Computing total value](#computing-total-value)
+    - [Computing per class value](#computing-per-class-value)
 
 # Week 01 - Numpy, Pandas, Matplotlib & Seaborn
 
@@ -9464,3 +9479,524 @@ For $x > 0$, the derivative of the ReLU function is $1$. For $x <= 0$, the deriv
 - Available as [`nn.BatchNorm1d`](https://pytorch.org/docs/stable/generated/torch.nn.BatchNorm1d.html).
   - **Note 1:** The number of features has to be equal to the number of output neurons of the previous layer.
   - **Note 2:** Done after applying layer and before the activation.
+
+# Week 13 - Convolutional Neural Networks
+
+## The Clouds dataset
+
+We will be working with a dataset containing pictures of various types of clouds.
+
+![w13_task01.png](assets/w13_task01.png "w13_task01.png")
+
+<details>
+
+<summary>How can we load one of those images in Python?</summary>
+
+We can use the [`pillow`](https://pypi.org/project/pillow/) package. It is imported with the name `PIL` and has a very handly [`Image.open` function](https://pillow.readthedocs.io/en/latest/handbook/tutorial.html#using-the-image-class).
+
+</details>
+
+<details>
+
+<summary>Wait - what is an image again?</summary>
+
+- The image is a matrix of pixels ("picture elements").
+- Each pixel contains color information.
+
+![w13_image_pixels.png](assets/w13_image_pixels.png "w13_image_pixels.png")
+
+- Grayscale images: integer in the range $[0 - 255]$.
+  - 30:
+
+    ![w13_image_gray.png](assets/w13_image_gray.png "w13_image_gray.png")
+
+- Color images: three/four integers, one for each color channel (**R**ed, **G**reen, **B**lue, sometimes also **A**lpha).
+  - RGB = $(52, 171, 235)$:
+
+    ![w13_image_blue.png](assets/w13_image_blue.png "w13_image_blue.png")
+
+</details>
+
+## Converting pixels to tensors and tensors to pixels
+
+### [`ToTensor()`](https://pytorch.org/vision/main/generated/torchvision.transforms.ToTensor.html#totensor)
+
+- Converts pixels to float tensors (PIL image => `torch.float`).
+- Scales values to $[0.0, 1.0]$.
+
+### [`PILToTensor()`](https://pytorch.org/vision/main/generated/torchvision.transforms.PILToTensor#piltotensor)
+
+- Converts pixels to `8`-bit unsigned integers (PIL image => `torch.uint8`).
+- Does not scale values: they stay in the interval $[0, 255]$.
+
+### [`ToPILImage()`](https://pytorch.org/vision/0.9/transforms.html#torchvision.transforms.ToPILImage)
+
+- Converts a tensor or an numpy `ndarray` to PIL Image.
+- Does not change values.
+
+## Loading images to PyTorch
+
+The easiest way to build a `Dataset` object when we have a classification task is with a predefined directory structure.
+
+As we load the images, we could also apply preprocessing steps using `torchvision.transforms`.
+
+```text
+clouds_train
+  - cumulus
+    - 75cbf18.jpg
+    - ...
+  - cumulonimbus
+  - ...
+clouds_test
+  - cumulus
+  - cumulonimbus
+```
+
+- Main folders: `clouds_train` and `clouds_test`.
+  - Inside: one folder per category.
+    - Inside: image files.
+
+```python
+from torchvision.datasets import ImageFolder
+from torchvision import transforms
+from torch.utils import data
+
+train_transforms = transforms.Compose([
+  transforms.ToTensor(), # convert the object into a tensor
+  transforms.Resize((128, 128)), # resize the images to be of size 128x128
+])
+
+dataset_train = ImageFolder(
+  'DATA/clouds/clouds_train',
+  transform=train_transforms,
+)
+
+dataloader_train = data.DataLoader(
+  dataset_train,
+  shuffle=True,
+  batch_size=1,
+)
+
+image, label = next(iter(dataloader_train))
+print(image.shape)
+```
+
+```console
+torch.Size([1, 3, 128, 128])
+```
+
+In the above output:
+
+- `1`: batch size;
+- `3`: three color channels;
+- `128`: height;
+- `128`: width.
+
+We could display these images as well, but we'll have to do two transformations:
+
+1. We need to have a three dimensional matrix. The above shape represents a `4D` one. To remove all dimensions with size `1`, we can use the `squeeze` method of the `image` object.
+2. The number of color channels must come after the height and the width. To change the order of the dimensions, we can use the `permute` method of the `image` object.
+
+```python
+image = image.squeeze().permute(1, 2, 0)
+print(image.shape)
+```
+
+```console
+torch.Size([128, 128, 3])
+```
+
+We can now, plot this using `matplotlib`:
+
+```python
+import matplotlib.pyplot as plt
+plt.imshow(image)
+plt.axis('off')
+plt.show()
+```
+
+![w13_loading_image_result.png](assets/w13_loading_image_result.png "w13_loading_image_result.png")
+
+## Data augmentation
+
+<details>
+
+<summary>What is data augmentation?</summary>
+
+Applying random transformations to original data points.
+
+</details>
+
+<details>
+
+<summary>What is the goal of data augmentation?</summary>
+
+Generating more data.
+
+</details>
+
+<details>
+
+<summary>On which set should data augmentation be applied to - train, validation, test, all, some?</summary>
+
+Only to the training set.
+
+</details>
+
+<details>
+
+<summary>What is the added value of data augmentation?</summary>
+
+- Increase the size of the training set.
+- Increase the diversity of the training set.
+- Improve model robustness.
+- Reduce overfitting.
+
+</details>
+
+All supported image augmentation transformation can be found in [the documentation of torchvision](https://pytorch.org/vision/stable/transforms.html#v2-api-reference-recommended).
+
+<details>
+
+<summary>Image augmentation operations can sometimes negatively impact the training process. Can you think of two deep learning tasks in which specific image augmentation operations should not be used?</summary>
+
+- Fruit classification and changing colors:
+
+One of the supported image augmentation transformations is [`ColorJitter`](https://pytorch.org/vision/stable/auto_examples/transforms/plot_transforms_illustrations.html#colorjitter) - it randomly changes brightness, contrast, saturation, hue, and other properties of an image.
+
+If we are doing fruit classification and decide to apply a color shift augmentation to an image of the lemon, the augmented image will still be labeled as lemon although it would represent a lime.
+
+![w13_data_augmentation_problem.png](assets/w13_data_augmentation_problem.png "w13_data_augmentation_problem.png")
+
+- Hand-written characters classification and vertical flip:
+
+![w13_data_augmentation_problem2.png](assets/w13_data_augmentation_problem2.png "w13_data_augmentation_problem2.png")
+
+</details>
+
+<details>
+
+<summary>So, how do we choose appropriate augmentation operations?</summary>
+
+- Whether an augmentation operation is appropriate depends on the task and data.
+- Remember: Augmentations impact model performance.
+
+<details>
+
+<summary>Ok, but then how do we see the dependence in terms of data?</summary>
+
+Explore, explore, explore!
+
+</details>
+
+</details>
+
+<details>
+
+<summary>What transformations can you think of for our current task (cloud classification)?</summary>
+
+```python
+train_transforms = transforms.Compose([
+  transforms.RandomHorizontalFlip(), # simulate different viewpoints of the sky
+  transforms.RandomRotation(45), # expose model to different angles of cloud formations
+  transforms.RandomAutocontrast(), # simulate different lighting conditions
+  transforms.ToTensor(), # convert the object into a tensor
+  transforms.Resize((128, 128)), # resize the images to be of size 128x128
+])
+```
+
+![w13_data_augmentation.png](assets/w13_data_augmentation.png "w13_data_augmentation.png")
+
+</details>
+
+Which of the following statements correctly describe data augmentation? (multiple selection)
+
+A. Using data augmentation allows the model to learn from more examples.
+B. Using data augmentation increases the diversity of the training data.
+C. Data augmentation makes the model more robust to variations and distortions commonly found in real-world images.
+D. Data augmentation reduces the risk of overfitting as the model learns to ignore the random transformations.
+E. Data augmentation introduces new information to the model that is not present in the original dataset, improving its learning capability.
+F. None of the above.
+
+<details>
+
+<summary>Reveal answer</summary>
+
+Answers: A, B, C, D.
+
+Data augmentation allows the model to learn from more examples of larger diversity, making it robust to real-world distortions.
+
+It tends to improve the model's performance, but it does not create more information than is already contained in the original images.
+
+<details>
+
+<summary>What should we prefer - using more real training data or generating it artificially?</summary>
+
+If available, using more training data is preferred to creating it artificially with data augmentation.
+
+</details>
+
+</details>
+
+## CNNs - The neural networks for image processing
+
+Let's say that we have the following image:
+
+![w13_linear_layers_problem.png](assets/w13_linear_layers_problem.png "w13_linear_layers_problem.png")
+
+<details>
+
+<summary>What is the problem of using linear layers to solve the classification task?</summary>
+
+Too many parameters.
+
+If the input size is `256x256`, that means that the network has `65,536` inputs!
+
+If the first linear layer has `1000` neurons, only it alone would result in over `65` **million** parameters! For a color image, this number would be even higher.
+
+![w13_linear_layers_problem2.png](assets/w13_linear_layers_problem2.png "w13_linear_layers_problem2.png")
+
+So, the three main problems are:
+
+- Incredible amount of resources needed.
+- Slow training.
+- Overfitting.
+
+</details>
+
+<details>
+
+<summary>What is another more subtle problem of using linear layers only?</summary>
+
+They are not space-invariant.
+
+Linearly connected neurons could learn to detect the cat, but the same cat **won't be recognized if it appears in a *different* location**.
+
+![w13_space_invariance.png](assets/w13_space_invariance.png "w13_space_invariance.png")
+
+</details>
+
+<details>
+
+<summary>So, ok - the alternative is using CNNs. How do they work?</summary>
+
+![w13_cnn.png](assets/w13_cnn.png "w13_cnn.png")
+
+- Parameters are collected in one or more small grids called **filters**.
+- **Slide** filter(s) over the input.
+- At each step, perform the **convolution** operation.
+- The end result (after the whole image has been traversed with **one filter**) is called a **feature map**:
+  - Preserves spatial patterns from the input.
+  - Uses fewer parameters than linear layer.
+- Remember: one filter = one feature map. We can slide **multiple filters over an original image**, to get multiple feature maps.
+- We can then apply activations to the feature maps.
+- The set of all feature maps combined, form the output of a single convolutional layer.
+- Available in `torch.nn`: [`nn.Conv2d(in_channels=3, out_channels=32, kernel_size=3)`](https://pytorch.org/docs/stable/generated/torch.nn.Conv2d.html):
+  - `in_channels`: number of input dimensions.
+  - `out_channels`: number of filters.
+  - `kernel_size`: height and width of the filter(s).
+
+</details>
+
+<details>
+
+<summary>What does the convolution operation comprise of?</summary>
+
+![w13_cnn_dot.png](assets/w13_cnn_dot.png "w13_cnn_dot.png")
+
+</details>
+
+<details>
+
+<summary>What is zero padding?</summary>
+
+![w13_cnn_zero_pad.png](assets/w13_cnn_zero_pad.png "w13_cnn_zero_pad.png")
+
+- Add a frame of zeros to the input of the convolutional layer.
+- This maintains the spatial dimensions of the input and output tensors.
+- Ensures border pixels are treated equally to others.
+
+Available as `padding` argument: `nn.Conv2d(3, 32, kernel_size=3, padding=1)`.
+
+</details>
+
+<details>
+
+<summary>What is max pooling?</summary>
+
+![w13_cnn_max_pool.png](assets/w13_cnn_max_pool.png "w13_cnn_max_pool.png")
+
+- Slide non-overlapping window over input.
+- At each position, retain only the maximum value.
+- Used after convolutional layers to reduce spatial dimensions.
+
+Available in `torch.nn`: [`nn.MaxPool2d(kernel_size=2)`](https://pytorch.org/docs/stable/generated/torch.nn.MaxPool2d.html).
+
+</details>
+
+<details>
+
+<summary>But what happens when the input is three dimensional - what do the filters look like?</summary>
+
+The `2D` part of a `2D` convolution does not refer to the dimension of the convolution input, nor of dimension of the filter itself, but rather of the space in which the filter is allowed to move (`2` directions only).
+
+Different `2D`-array filters are applied to each dimension and then their outputs are summed up (you can also think of this as a single `3D` matrix):
+
+![w13_rgb_convolution.png](assets/w13_rgb_convolution.png "w13_rgb_convolution.png")
+
+$$(1*1+2*2+4*3+5*4)+(0*0+1*1+3*2+4*3) = 56$$
+
+More on this [here](https://stackoverflow.com/a/62544803/16956119) and [here](https://d2l.ai/chapter_convolutional-neural-networks/channels.html).
+
+</details>
+
+## Architecture
+
+The typical architecture follows the style:
+
+1. Convolution.
+2. Activation function - `ReLU`, `ELU`, etc.
+3. Max pooling.
+4. Iterate the above until there are much more filters than height and width (effectively, until we get a much "deeper" `z`-axis).
+5. Flatter everything into a single vector using [`nn.Flatten`](https://pytorch.org/docs/stable/generated/torch.nn.Flatten.html). This vector is the ***summary of the original input image***.
+6. Apply several regular linear layers to it.
+
+![w13_architecture2.png](assets/w13_architecture2.png "w13_architecture2.png")
+
+Here's one famous architecture - [VGG-16](https://arxiv.org/abs/1409.1556v6):
+
+![w13_architecture.png](assets/w13_architecture.png "w13_architecture.png")
+
+In our case, we could have something like the following:
+
+![w13_architecture_ours.png](assets/w13_architecture_ours.png "w13_architecture_ours.png")
+
+Which of the following statements are true about convolutional layers? (multiple selection)
+
+A. Convolutional layers preserve spatial information between their inputs and outputs.
+B. Adding zero-padding around the convolutional layer's input ensures that the pixels at the border receive as much attention as those located elsewhere in the feature map.
+C. Convolutional layers in general use fewer parameters than linear layers.
+
+<details>
+
+<summary>Reveal answer</summary>
+
+All of them.
+
+</details>
+
+## Cross-Entropy loss
+
+$${\displaystyle H(model,labels)=-\sum _{x\in {\mathcal {X}}}model(x)\,\log labels(x).}$$
+
+- Available in [`nn.CrossEntropyLoss`](https://pytorch.org/docs/stable/generated/torch.nn.CrossEntropyLoss.html#crossentropyloss).
+- Can apply it directly on logits: it includes the `softmax` logic.
+
+## Checkpoint
+
+You are building a model to recognize different flower species. You consider three augmentations to use: `color shift`, `rotation`, and `texture change`. The graphic below shows the examples of these three augmentations. Which of the augmentations could be used for the flower classifier?
+
+![w13_checkpoint.png](assets/w13_checkpoint.png "w13_checkpoint.png")
+
+A. Only color shift
+B. Only rotation
+C. Only texture shift
+D. All three
+E. None of the three
+
+<details>
+
+<summary>Reveal answer</summary>
+
+Answer: B.
+
+The flower is still the same species when it's rotated, so this augmentation will not introduce noise in training labels; rather, it will increase the diversity of the training samples.
+
+For this task having the right color is important. The other two operations can change the color which could negatively impact the performance of the model.
+
+</details>
+
+## Precision & Recall for Multiclass Classification (revisited)
+
+### Computing total value
+
+In week 04 we introduced the metrics `precision` and `recall` in the context of binary classification.
+
+We also touched very slightly on the usecase for multiclass classification:
+
+```console
+              precision    recall  f1-score   support
+
+     class 0       0.50      1.00      0.67         1
+     class 1       0.00      0.00      0.00         1
+     class 2       1.00      0.67      0.80         3
+
+    accuracy                           0.60         5
+   macro avg       0.50      0.56      0.49         5
+weighted avg       0.70      0.60      0.61         5
+```
+
+`Support` represents the number of instances for each class within the true labels. If the column with `support` has different numbers, then we have class imbalance.
+
+- `macro average` = $\frac{F1_{class1} + F1_{class2} + F1_{class3}}{3}$
+- `weighted average` = $\frac{F1_{class1}*SUPPORT_{class1} + F1_{class2}*SUPPORT_{class2} + F1_{class3}*SUPPORT_{class3}}{3}$
+- `micro average` = $\frac{F1_{class1}*SUPPORT_{class1} + F1_{class2}*SUPPORT_{class2} + F1_{class3}*SUPPORT_{class3}}{SUPPORT_{class1} + SUPPORT_{class2} + SUPPORT_{class3}}$
+
+To calculate them with `torch`, we can use the classes [`torchmetrics.Recall`](https://lightning.ai/docs/torchmetrics/stable/classification/recall.html) and [`torchmetrics.Precision`](https://lightning.ai/docs/torchmetrics/stable/classification/precision.html):
+
+```python
+from torchmetrics import Recall
+
+recall_per_class = Recall(task='multiclass', num_classes=7, average=None)
+recall_micro = Recall(task='multiclass', num_classes=7, average='micro')
+recall_macro = Recall(task='multiclass', num_classes=7, average='macro')
+recall_weighted = Recall(task='multiclass', num_classes=7, average='weighted')
+```
+
+When to use each:
+
+- `micro`: imbalanced datasets.
+- `macro`: consider errors in small classes as equally important as those in larger classes.
+- `weighted`: consider errors in larger classes as most important.
+
+We also have the [F1 score metric](https://lightning.ai/docs/torchmetrics/stable/classification/f1_score.html).
+
+<details>
+
+<summary>What does multilabel classification mean?</summary>
+
+When one instance can get multiple classes assigned to it. This is the case, for example, in research article authorship identification: one article has multiple authors.
+
+</details>
+
+### Computing per class value
+
+- We can also analyze the performance per class.
+- To do this, compute the metric, setting `average=None`.
+  - This gives one score per each class:
+
+```python
+print(f1)
+```
+
+```console
+tensor([0.6364, 1.0000, 0.9091, 0.7917,
+        0.5049, 0.9500, 0.5493],
+        dtype=torch.float32)
+```
+
+- Then, use the `Dataset`'s `.class_to_idx` attribute that maps class names to indices.
+
+```python
+dataset_test.class_to_idx
+```
+
+```console
+{'cirriform clouds': 0,
+ 'clear sky': 1,
+ 'cumulonimbus clouds': 2,
+ 'cumulus clouds': 3,
+ 'high cumuliform clouds': 4,
+ 'stratiform clouds': 5,
+ 'stratocumulus clouds': 6}
+```
