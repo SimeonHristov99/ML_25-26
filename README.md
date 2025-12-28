@@ -31,7 +31,7 @@ Please follow the instructions in one of the following two folders:
 11. ✅ **11.12, Thursday, 5:15 pm, 020**
 12. ✅ **11.12, Thursday, 7:15 pm, 013**
 13. ✅ 15.12, Monday, 7:15 pm, 013
-14. ✅ 05.01, Monday, 7:15 pm, 013
+14. 05.01, Monday, 7:15 pm, 013
 15. 12.01, Monday, 7:15 pm, 013
 
 ## ⏰ Schedules
