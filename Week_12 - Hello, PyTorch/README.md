@@ -99,7 +99,7 @@ Here's what we can do:
 2. Improve the weight initialization by using the He (Kaiming) uniform initialization strategy, accounting for the correct values for the `nonlinearity` parameter. Look for the proper initializer in the `torch.nn.init` module. Since `elu` is not supported, for the layers that have this activation function, use the default value - `leaky_relu`.
 3. Add batch normalization.
 
-Apply the new model on the setup you created in `Task 2` (using the seed of `42`) and report the test set `f1` score.
+Apply the new model on the setup you created in `Task 02` (using the seed of `42`) and report the test set `f1` score.
 
 Answer the following question in a comment:
 
