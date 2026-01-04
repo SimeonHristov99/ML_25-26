@@ -1,4 +1,4 @@
-# 🎯 Goals for week 13
+# Goals for week 13
 
 1. Practice working with convolutional neural networks using PyTorch.
 2. Practice writing high quality code:
