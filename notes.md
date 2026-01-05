@@ -242,6 +242,24 @@
   - [Precision \& Recall for Multiclass Classification (revisited)](#precision--recall-for-multiclass-classification-revisited)
     - [Computing total value](#computing-total-value)
     - [Computing per class value](#computing-per-class-value)
+- [Week 14 - Recurrent Neural Networks](#week-14---recurrent-neural-networks)
+  - [Sequential data](#sequential-data)
+  - [Electricity consumption prediction](#electricity-consumption-prediction)
+  - [`TensorDataset`](#tensordataset)
+  - [The recurrent neuron](#the-recurrent-neuron)
+      - [Internals of the `RNN` cell](#internals-of-the-rnn-cell)
+      - [Unrolling through time](#unrolling-through-time)
+      - [Deep RNNs](#deep-rnns)
+    - [Architecture types](#architecture-types)
+      - [Sequence-to-sequence architecture](#sequence-to-sequence-architecture)
+      - [Sequence-to-vector architecture](#sequence-to-vector-architecture)
+      - [Vector-to-sequence architecture](#vector-to-sequence-architecture)
+      - [Encoder-decoder architecture](#encoder-decoder-architecture)
+      - [Choosing the right architecture for the problem](#choosing-the-right-architecture-for-the-problem)
+    - [The problem with using plain RNNs the model sequential data](#the-problem-with-using-plain-rnns-the-model-sequential-data)
+    - [Internals of the `LSTM` cell](#internals-of-the-lstm-cell)
+    - [Internals of the `GRU` cell](#internals-of-the-gru-cell)
+    - [Should I use RNN, LSTM, or GRU?](#should-i-use-rnn-lstm-or-gru)
 
 # Week 01 - Numpy, Pandas, Matplotlib & Seaborn
 
@@ -10000,3 +10018,415 @@ dataset_test.class_to_idx
  'stratiform clouds': 5,
  'stratocumulus clouds': 6}
 ```
+
+# Week 14 - Recurrent Neural Networks
+
+## Sequential data
+
+<details>
+
+<summary>What is sequential data?</summary>
+
+- **Ordered** in time or space.
+- Having an order between the data points, means that there is an **implicit dependency** between them.
+
+</details>
+
+<details>
+
+<summary>Give three examples of sequential data.</summary>
+
+- Text.
+- Time series (stock market movements).
+
+![w14_sequential_data_examples.png](assets/w14_sequential_data_examples.png "w14_sequential_data_examples.png")
+
+- Audio waves.
+
+![w14_audio_waves.png](assets/w14_audio_waves.png "w14_audio_waves.png")
+
+</details>
+
+<details>
+
+<summary>What were the typical preprocessing steps we talked about?</summary>
+
+- Analyzing the data type.
+- Data statistics.
+- Data distribution.
+- Correlation analysis for feature elimination.
+- Train-test split.
+- Data scaling.
+- Missing value imputation or removal.
+- One-hot encoding.
+
+</details>
+
+<details>
+
+<summary>From the above which is not applicable when solving a problem involving sequential data?</summary>
+
+No random train-test splitting when working with sequential data!
+
+<details>
+
+<summary>Why?</summary>
+
+Introduces the problem of **look-ahead** bias in which the model has information about the future.
+
+</details>
+
+</details>
+
+<details>
+
+<summary>How can we solve this?</summary>
+
+1. Split by time, not by observation.
+
+![w14_split_by_time_example.png](assets/w14_split_by_time_example.png "w14_split_by_time_example.png")
+
+- Pros:
+  - Straightforward.
+  - Great for simple use-cases.
+- Cons:
+  - Model becomes unreliable as OOT samples grow.
+
+2. Use a rolling window approach: take $n$ samples and predict the $n + 1$. **<- preferred**
+
+</details>
+
+## Electricity consumption prediction
+
+Let's tackle the problem of predicting electricity consumption based on past patterns. In our `DATA` folder you'll find the folder `electricity_consumption`. It contains electricity consumption in kilowatts, or kW, for a certain user recorded every 15 minutes for four years.
+
+![w14_dataset_example.png](assets/w14_dataset_example.png "w14_dataset_example.png")
+
+<details>
+
+<summary>What would a single training example even look like?</summary>
+
+- Our models will now take multiple rows of the data and try to predict the row that follows.
+- In other words, to feed the training data to the model, we need to chunk it first to create **sequences** that the model can use as training examples.
+
+</details>
+
+<details>
+
+<summary>Having understood this, what would the term "sequence length" mean?</summary>
+
+The number of features in one training example.
+
+![w14_seq_len_example.png](assets/w14_seq_len_example.png "w14_seq_len_example.png")
+
+</details>
+
+<details>
+
+<summary>If we wanted to base our prediction on the last 24 hours of consumption, what would be the sequence length of a single training example?</summary>
+
+Because the measurements are per $15$ minutes, $4$ measurements correspond to $1$ hour. To get $24$ hours, we would take $24 * 4 = 96$ samples.
+
+</details>
+
+The above data-splitting techniques are applicable to other types of sequential data as well:
+
+- Large Language Models: predict the next word in a sentence (similar to predicting the next amount of electricity used);
+- Speech recognition: transcribing an audio recording of someone speaking to text.
+
+## [`TensorDataset`](https://pytorch.org/docs/stable/data.html#torch.utils.data.TensorDataset)
+
+If we have `numpy` arrays of training and testing data and want to use them as a `pytorch` `Dataset`, we can use the `TensorDataset` wrapper.
+
+```python
+X_train, y_train = create_sequences(train_data, seq_length)
+print(X_train.shape, y_train.shape)
+```
+
+```console
+(34944, 96) (34944,)
+```
+
+```python
+from torch.utils.data import TensorDataset
+
+dataset_train = TensorDataset(
+  torch.from_numpy(X_train).float(),
+  torch.from_numpy(y_train).float(),
+)
+```
+
+The `TensorDataset` behaves just like all other torch `Datasets` and it can be passed to a `DataLoader` in the same way.
+
+## The recurrent neuron
+
+- So far, we've only seen feed-forward networks.
+- RNNs are a different class of networks that have connections pointing back at the same neuron.
+- Recurrent neuron:
+  - Input `x`.
+  - Output `y`.
+  - Hidden state `h`.
+- In PyTorch: `nn.RNN()`.
+
+![w14_rnn_example.png](assets/w14_rnn_example.png "w14_rnn_example.png")
+
+#### Internals of [the `RNN` cell](https://pytorch.org/docs/stable/generated/torch.nn.RNN.html)
+
+![w14_rnn_internals.png](assets/w14_rnn_internals.png "w14_rnn_internals.png")
+
+- Two inputs:
+  - current input data `x`;
+  - previous hidden state `h`.
+- Two outputs:
+  - current output `y`;
+  - next hidden state `h`.
+- What happens in the block `weights & activation` is subject to implementation - **different styles exist**:
+
+1. We can weigh the input and the hidden state and then sum them up (PyTorch style):
+
+```python
+class RNNCell:
+  # ...
+  def step(self, x):
+    # update the hidden state
+    self.h = np.tanh(np.dot(self.W_hh, self.h) + np.dot(self.W_xh, x))
+    # compute the output vector
+    y = np.dot(self.W_hy, self.h)
+    return y, self.h
+```
+
+2. We can also just concatenate them and pass them through a `nn.Linear` layer:
+
+![w14_rnn_internals_v2.gif](assets/w14_rnn_internals_v2.gif "w14_rnn_internals_v2.gif")
+
+#### Unrolling through time
+
+- The output at each time step depends on all the previous inputs.
+- Recurrent networks maintain **memory through time**, which allows them to handle sequential data well.
+
+![w14_unrolling_rnn.png](assets/w14_unrolling_rnn.png "w14_unrolling_rnn.png")
+
+![w14_unrolling_rnn2.gif](assets/w14_unrolling_rnn2.gif "w14_unrolling_rnn2.gif")
+
+#### Deep RNNs
+
+![w14_deep_rnn.png](assets/w14_deep_rnn.png "w14_deep_rnn.png")
+
+### Architecture types
+
+- Depending on the lengths of input and output sequences, we distinguish four different architecture types:
+  - `sequence-to-sequence` (`seq2seq`);
+  - `sequence-to-vector`;
+  - `vector-to-sequence`;
+  - `encoder-decoder`.
+
+#### Sequence-to-sequence architecture
+
+Pass sequence as input, use entire output sequence.
+
+![w14_seq2seq.png](assets/w14_seq2seq.png "w14_seq2seq.png")
+
+#### Sequence-to-vector architecture
+
+Pass sequence as input, use only the last output.
+
+![w14_seq2vec.png](assets/w14_seq2vec.png "w14_seq2vec.png")
+
+In PyTorch:
+
+```python
+class Net(nn.Module):
+  def __init__(self):
+    super().__init__()
+    self.rnn = nn.RNN(
+        input_size=1,     # Number of features in the input at each time step
+        hidden_size=32,   # Size of the hidden state (memory vector)
+        num_layers=2,     # Two stacked RNN layers
+        batch_first=True  # When `True` the input and output tensors are provided as (batch, seq, feature) instead of (seq, batch, feature)
+    )
+    self.fc = nn.Linear(32, 1)
+
+  def forward(self, x):
+    # Initialize the hidden state with zeros
+    # Shape: (num_layers, batch_size, hidden_size)
+    h0 = torch.zeros(2, x.size(0), 32, device=x.device)
+    # x shape: (batch_size, sequence_length, input_size)
+    out, h_n = self.rnn(x, h0)
+    # out shape: (batch_size, sequence_length, hidden_size)
+    # h_n shape: (num_layers, batch_size, hidden_size)
+    # Use the hidden state from the last time step
+    out = self.fc(out[:, -1, :])
+    return out
+```
+
+#### Vector-to-sequence architecture
+
+Pass single input, use the entire output sequence.
+
+![w14_vec2seq.png](assets/w14_vec2seq.png "w14_vec2seq.png")
+
+#### Encoder-decoder architecture
+
+Pass entire input sequence, only then start using output sequence.
+
+![w14_enc_dec.png](assets/w14_enc_dec.png "w14_enc_dec.png")
+
+#### Choosing the right architecture for the problem
+
+Whenever you face a task that requires handling sequential data, you need to be able to decide what type of recurrent architecture is the most suitable for the job. Classify each of the provided use cases to the most suitable recurrent neural network architecture.
+
+![w14_all_architectures.png](assets/w14_all_architectures.png "w14_all_architectures.png")
+
+<details>
+
+<summary>Based on a sequence of words, predict whether the sentiment is positive or negative.</summary>
+
+Sequence-to-vector.
+
+</details>
+
+<details>
+
+<summary>Translate text from Bulgarian to Greek.</summary>
+
+Encoder-decoder.
+
+</details>
+
+<details>
+
+<summary>Real-time speech recognition.</summary>
+
+Sequence-to-sequence.
+
+</details>
+
+<details>
+
+<summary>Non-real time speech recognition when the device first listens, and only then replies.</summary>
+
+Encoder-decoder.
+
+</details>
+
+<details>
+
+<summary>Image captioning: pass a representation of an image and get a caption for it.</summary>
+
+Vector-to-sequence.
+
+</details>
+
+<details>
+
+<summary>Based on the stock price in the last 30 days, predict the stock price today.</summary>
+
+Sequence-to-vector.
+
+</details>
+
+<details>
+
+<summary>Given a topic, generate text on this topic.</summary>
+
+Vector-to-sequence.
+
+</details>
+
+<details>
+
+<summary>Video classification on a frame level.</summary>
+
+Sequence-to-sequence.
+
+</details>
+
+### The problem with using plain RNNs the model sequential data
+
+<details>
+
+<summary>What do you think?</summary>
+
+- RNN cells maintain memory via the hidden state.
+- This memory, however, is very short-lived: plain RNNs suffer from the **short-term memory problem**.
+- Two more powerful cells solve this problem:
+  - The Long Short-Term Memory (`LSTM`) cell.
+  - The Gated Recurrent Unit (`GRU`) cell.
+
+</details>
+
+![w14_unstable_gradient.gif](assets/w14_unstable_gradient.gif "w14_unstable_gradient.gif")
+
+### Internals of [the `LSTM` cell](https://pytorch.org/docs/stable/generated/torch.nn.LSTM.html)
+
+![w14_lstm_internals.png](assets/w14_lstm_internals.png "w14_lstm_internals.png")
+
+- Two hidden states:
+  - `h`: short-term state;
+  - `c`: long-term state.
+- Three inputs and outputs:
+  - current input `x`;
+  - previous short-term state;
+  - previous long-term state.
+- Three `gates`:
+  - **Forget gate:** what to remove from long-term memory.
+  - **Input gate:** what to save to long-term memory.
+  - **Output gate:** what to return at the current time step.
+
+![w14_lstm_internals2.png](assets/w14_lstm_internals2.png "w14_lstm_internals2.png")
+
+Example:
+
+```python
+rnn = nn.LSTM(10, 20, 2)
+input_x = torch.randn(5, 3, 10)
+h0 = torch.randn(2, 3, 20)
+c0 = torch.randn(2, 3, 20)
+output, (hn, cn) = rnn(input_x, (h0, c0))
+```
+
+![w14_lstm_internals3.gif](assets/w14_lstm_internals3.gif "w14_lstm_internals3.gif")
+
+### Internals of [the `GRU` cell](https://pytorch.org/docs/stable/generated/torch.nn.GRU.html)
+
+![w14_gru_internals.png](assets/w14_gru_internals.png "w14_gru_internals.png")
+
+- Simplified version of the `LSTM` cell.
+- Just one hidden state.
+- No output gate.
+
+![w14_gru_internals2.png](assets/w14_gru_internals2.png "w14_gru_internals2.png")
+
+Example:
+
+```python
+rnn = nn.GRU(10, 20, 2)
+input_x = torch.randn(5, 3, 10)
+h0 = torch.randn(2, 3, 20)
+output, hn = rnn(input_x, h0)
+```
+
+![w14_gru_internals3.gif](assets/w14_gru_internals3.gif "w14_gru_internals3.gif")
+
+### Should I use RNN, LSTM, or GRU?
+
+- Experiment, experiment, experiment.
+- General trends:
+  - RNN is not used a lot.
+  - GRU is simpler than LSTM. It has less computation and is therefore faster.
+  - Relative performance varies per use-case. Use the simplest model that achieves the metrics you want.
+
+Which of the following statements about the different types of recurrent neural networks are correct? (multiple selection)
+
+A. Plain RNN cells are able to keep a memory track of long input sequences.
+B. LSTM cells keep two hidden states: one for short-term memory and one for long-term memory.
+C. In both LSTM and GRU cells, the hidden state is not only passed as input to the next time step, but also returned (either as a copy or through an activation function) at the current time step.
+D. LSTM cells always provide better results than GRU cells because they can handle more complexity with three rather than two gates.
+
+<details>
+
+<summary>Reveal answer</summary>
+
+Answer: B, C.
+
+</details>
