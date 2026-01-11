@@ -10254,8 +10254,8 @@ class Net(nn.Module):
     out, h_n = self.rnn(x, h0)
     # out shape: (batch_size, sequence_length, hidden_size)
     # h_n shape: (num_layers, batch_size, hidden_size)
-    # Use the hidden state from the last time step
-    out = self.fc(out[:, -1, :])
+    # Use the hidden state from the last time step (for a standard (non-bidirectional) RNN: out[:, -1, :] === h_n[-1, :, :])
+    out = self.fc(out[:, -1, :]) # (batch_size, hidden_size)
     return out
 ```
 
