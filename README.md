@@ -32,12 +32,12 @@ Please follow the instructions in one of the following two folders:
 12. ✅ **11.12, Thursday, 7:15 pm, 013**
 13. ✅ 15.12, Monday, 7:15 pm, 013
 14. ✅ 05.01, Monday, 7:15 pm, 013
-15. 12.01, Monday, 7:15 pm, 013
+15. ✅ 12.01, Monday, 7:15 pm, 013
 
 ## ⏰ Schedules
 
 - [X] Homework 1: 14/15.11 - 07.12. Topic: Supervised learning.
-- [ ] Homework 2: 12/13.12 - 11.01. Topic: Unsupervised learning.
+- [X] Homework 2: 12/13.12 - 11.01. Topic: Unsupervised learning.
 - [ ] Projects: 11/12.12 - the day before the defense. Topic: suggest & get approved or choose from pre-approved list.
 
 ## 📚 Resources
