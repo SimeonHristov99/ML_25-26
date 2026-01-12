@@ -10613,7 +10613,7 @@ Since the possible bigrams are not that much - `28` (including `SOS` and `EOS`),
 
 By doing so we'll get a matrix that looks like this:
 
-![counts_01](assets/w11_counts_01.png?raw=true "counts_01.png")
+![counts_01](assets/w15_counts_01.png?raw=true "counts_01.png")
 
 </details>
 
@@ -10636,7 +10636,7 @@ Let's replace `<S>` and `<E>` with `.` and place the enumerations of `.` to be t
 
 We would then get this:
 
-![counts_02](assets/w11_counts_02.png?raw=true "counts_02.png")
+![counts_02](assets/w15_counts_02.png?raw=true "counts_02.png")
 
 </details>
 
@@ -10792,7 +10792,7 @@ If our model assigns a probability above $0.037$ to at least one pair, then it h
 
 Let's say that after we create the table with the probabilities, we check what probabilities the model assigns to the bigrams formed by the first `3` names and we get this:
 
-![w11_probs_tr_set.png](assets/w11_probs_tr_set.png "w11_probs_tr_set.png")
+![w15_probs_tr_set.png](assets/w15_probs_tr_set.png "w15_probs_tr_set.png")
 
 <details>
 <summary>In the ideal situation what values would we want to have?</summary>
@@ -10838,7 +10838,7 @@ $\log$ is:
 - monotonically increasing;
 - can better "distinguish" between very small numbers (we plug-in $x$, it gives us $y$);
 
-![w11_log_from_0_to_1.png](assets/w11_log_from_0_to_1.png "w11_log_from_0_to_1.png")
+![w15_log_from_0_to_1.png](assets/w15_log_from_0_to_1.png "w15_log_from_0_to_1.png")
 
 - and has this very nice equivalence: $\log (abc) = \log a + \log b + \log c$
 - the base is usually $e$, though it can vary.
